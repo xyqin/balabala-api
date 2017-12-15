@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE configuration
+        PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+    <settings>
+        <setting name="mapUnderscoreToCamelCase" value="true"/>
+    </settings>
+    <typeAliases>
+        <package name="com.finance4car.domain"/>
+    </typeAliases>
+    <mappers>
+        <mapper resource="com/finance4car/mapper/Finance4carFeedbackMapper.xml"/>
+        <mapper resource="com/finance4car/mapper/Finance4carMemberMapper.xml"/>
+        <mapper resource="com/finance4car/mapper/Finance4carModuleItemMapper.xml"/>
+        <mapper resource="com/finance4car/mapper/Finance4carModuleMapper.xml"/>
+        <mapper resource="com/finance4car/mapper/Finance4carPlanActionMapper.xml"/>
+        <mapper resource="com/finance4car/mapper/Finance4carPlanMapper.xml"/>
+        <mapper resource="com/finance4car/mapper/Finance4carPlanProcessMapper.xml"/>
+        <mapper resource="com/finance4car/mapper/Finance4carRegionMapper.xml"/>
+        <mapper resource="com/finance4car/mapper/Finance4carReportMapper.xml"/>
+    </mappers>
+</configuration>

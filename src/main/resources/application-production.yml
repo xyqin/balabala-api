@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: api-service
+  datasource:
+    url: jdbc:mysql://127.0.0.1:3306/finance4car?serverTimezone=Asia/Shanghai&autoReconnect=true&rewriteBatchedStatements=true
+    username: un_tjzy
+    password: taijizhiyuan123
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  redis:
+    host: 127.0.0.1
+    port: 6379
+    password: B9KXw>e3#ghJivBonu9W28b9
+
+management:
+  security:
+    enabled: true
+
+security:
+  user:
+    name: admin
+    password: anywave_123456
+  ignored: /channels/**,/events/**,/feedbacks/**,/homepage/**,/members/**,/newsletters/**,/verifications/**,/videos/**
+
+mybatis:
+  config-location: classpath:mybatis-config.xml
+
+debug:
+  enabled: false

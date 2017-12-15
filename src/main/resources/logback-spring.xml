@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+
+    <!-- 开发环境日志设置 -->
+    <springProfile name="development">
+
+        <root level="DEBUG">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+
+    <!-- 测试环境日志设置 -->
+    <springProfile name="test">
+        <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <encoder>
+                <pattern>${FILE_LOG_PATTERN}</pattern>
+            </encoder>
+            <file>/opt/finance4car/log/api.log</file>
+            <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+                <!-- daily rollover -->
+                <fileNamePattern>/opt/finance4car/log/api.%d{yyyy-MM-dd}.log</fileNamePattern>
+
+                <!-- keep 30 days' worth of history -->
+                <maxHistory>30</maxHistory>
+            </rollingPolicy>
+        </appender>
+
+        <logger name="com.finance4car" level="DEBUG"/>
+
+        <root level="INFO">
+            <appender-ref ref="FILE"/>
+        </root>
+    </springProfile>
+
+    <!-- 生产环境日志设置 -->
+    <springProfile name="production">
+        <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <encoder>
+                <pattern>${FILE_LOG_PATTERN}</pattern>
+            </encoder>
+            <file>/opt/finance4car/log/api.log</file>
+            <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+                <!-- daily rollover -->
+                <fileNamePattern>/opt/finance4car/log/api.%d{yyyy-MM-dd}.log</fileNamePattern>
+
+                <!-- keep 30 days' worth of history -->
+                <maxHistory>30</maxHistory>
+            </rollingPolicy>
+        </appender>
+
+        <logger name="com.finance4car" level="DEBUG"/>
+
+        <root level="WARN">
+            <appender-ref ref="FILE"/>
+        </root>
+    </springProfile>
+
+</configuration>
