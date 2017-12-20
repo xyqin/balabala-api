@@ -5,7 +5,7 @@
     <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
 
     <!-- 开发环境日志设置 -->
-    <springProfile name="development">
+    <springProfile name="test">
 
         <root level="DEBUG">
             <appender-ref ref="CONSOLE"/>
@@ -13,22 +13,22 @@
     </springProfile>
 
     <!-- 测试环境日志设置 -->
-    <springProfile name="test">
+    <springProfile name="test111">
         <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
             <encoder>
                 <pattern>${FILE_LOG_PATTERN}</pattern>
             </encoder>
-            <file>/opt/finance4car/log/api.log</file>
+            <file>/opt/balabala/log/api.log</file>
             <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
                 <!-- daily rollover -->
-                <fileNamePattern>/opt/finance4car/log/api.%d{yyyy-MM-dd}.log</fileNamePattern>
+                <fileNamePattern>/opt/balabala/log/api.%d{yyyy-MM-dd}.log</fileNamePattern>
 
                 <!-- keep 30 days' worth of history -->
                 <maxHistory>30</maxHistory>
             </rollingPolicy>
         </appender>
 
-        <logger name="com.finance4car" level="DEBUG"/>
+        <logger name="com.balabala" level="DEBUG"/>
 
         <root level="INFO">
             <appender-ref ref="FILE"/>
@@ -41,17 +41,17 @@
             <encoder>
                 <pattern>${FILE_LOG_PATTERN}</pattern>
             </encoder>
-            <file>/opt/finance4car/log/api.log</file>
+            <file>/opt/balabala/log/api.log</file>
             <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
                 <!-- daily rollover -->
-                <fileNamePattern>/opt/finance4car/log/api.%d{yyyy-MM-dd}.log</fileNamePattern>
+                <fileNamePattern>/opt/balabala/log/api.%d{yyyy-MM-dd}.log</fileNamePattern>
 
                 <!-- keep 30 days' worth of history -->
                 <maxHistory>30</maxHistory>
             </rollingPolicy>
         </appender>
 
-        <logger name="com.finance4car" level="DEBUG"/>
+        <logger name="com.balabala" level="DEBUG"/>
 
         <root level="WARN">
             <appender-ref ref="FILE"/>

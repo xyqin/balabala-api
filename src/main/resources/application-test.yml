@@ -2,14 +2,14 @@ spring:
   application:
     name: api-service
   datasource:
-    url: jdbc:mysql://118.31.2.247:3306/finance4car?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&autoReconnect=true&rewriteBatchedStatements=true
-    username: yuanrui
-    password: o0HBw_DXMAw9DxZBu=PNe!3K
+    url: jdbc:mysql://47.100.57.236:3306/balabala?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&autoReconnect=true&rewriteBatchedStatements=true
+    username: bara
+    password: WZCr(P-%2F@R@ZjS
     driver-class-name: com.mysql.cj.jdbc.Driver
   redis:
-    host: 118.31.2.247
+    host: 47.100.57.236
     port: 6379
-    password: EUcU4gy$2pFlubmr@5EhOQH1
+    password: 9wCLi7XVozMWttC6
 
 management:
   security:
@@ -23,8 +23,8 @@ mybatis:
   config-location: classpath:mybatis-config.xml
 
 storage:
-  local: /opt/finance4car/storage
-  link: http://118.31.2.247:8000
+  local: /opt/balabala/storage
+  link: http://47.100.57.236:8000
 
 debug:
   enabled: true
