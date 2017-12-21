@@ -4,6 +4,9 @@ import com.balabala.auth.Authenticator;
 import com.balabala.domain.BalabalaMember;
 import com.balabala.domain.BalabalaMemberPassport;
 import com.balabala.domain.BalabalaMemberPassportProvider;
+import com.balabala.netease.NeteaseClient;
+import com.balabala.netease.request.ImUserCreateRequest;
+import com.balabala.netease.response.ImUserCreateResponse;
 import com.balabala.repository.BalabalaMemberMapper;
 import com.balabala.repository.BalabalaMemberPassportMapper;
 import com.balabala.repository.example.BalabalaMemberPassportExample;
@@ -27,6 +30,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -46,12 +50,15 @@ public class MemberController {
     @Autowired
     private BalabalaMemberPassportMapper memberPassportMapper;
 
+    @Autowired
+    private NeteaseClient neteaseClient;
+
     /* 会员信息及账号相关接口 */
 
     @ApiOperation(value = "注册会员")
     @PostMapping(value = "/members/signup")
     @ResponseStatus(value = HttpStatus.NO_CONTENT)
-    public void signup(@Validated @RequestBody SignupRequest request) {
+    public void signup(@Validated @RequestBody SignupRequest request) throws IOException {
         // TODO 检查手机号验证码
 
         BalabalaMemberPassportExample example = new BalabalaMemberPassportExample();
@@ -65,19 +72,28 @@ public class MemberController {
             throw new BadRequestException("手机号已被注册");
         }
 
-        BalabalaMember member = new BalabalaMember();
-        member.setCampusId(request.getCampusId());
-        memberMapper.insertSelective(member);
+        // 注册网易云IM账号
+        ImUserCreateRequest imUserCreateRequest = new ImUserCreateRequest();
+        imUserCreateRequest.setAccid("member_" + request.getPhoneNumber());
+        ImUserCreateResponse imUserCreateResponse = neteaseClient.execute(imUserCreateRequest);
 
-        BalabalaMemberPassport passport = new BalabalaMemberPassport();
-        passport.setMemberId(member.getId());
-        passport.setProvider(BalabalaMemberPassportProvider.PHONE);
-        passport.setProviderId(request.getPhoneNumber());
-        passport.setPassword(DigestUtils.md5Hex(request.getPassword()));
-        memberPassportMapper.insertSelective(passport);
+        if (imUserCreateResponse.isSuccess()) {
+            BalabalaMember member = new BalabalaMember();
+            member.setCampusId(request.getCampusId());
+            member.setAccid(imUserCreateResponse.getInfo().getAccid());
+            member.setToken(imUserCreateResponse.getInfo().getToken());
+            memberMapper.insertSelective(member);
 
-        // 往session中设置会员ID
-        authenticator.newSession(member.getId());
+            BalabalaMemberPassport passport = new BalabalaMemberPassport();
+            passport.setMemberId(member.getId());
+            passport.setProvider(BalabalaMemberPassportProvider.PHONE);
+            passport.setProviderId(request.getPhoneNumber());
+            passport.setPassword(DigestUtils.md5Hex(request.getPassword()));
+            memberPassportMapper.insertSelective(passport);
+
+            // 往session中设置会员ID
+            authenticator.newSession(member.getId());
+        }
     }
 
     @ApiOperation(value = "手机号登录")
@@ -144,6 +160,12 @@ public class MemberController {
     @ApiOperation(value = "获取课程回顾")
     @GetMapping(value = "/members/lessons/history")
     public List<LessonDto> getLessonHistory(@RequestParam int page, @RequestParam int size) {
+        if (!authenticator.authenticate()) {
+            throw new UnauthorizedException("当前请求需要用户验证");
+        }
+
+        Long memberId = authenticator.getCurrentMemberId();
+
 
         return Lists.newArrayList();
     }
@@ -151,9 +173,15 @@ public class MemberController {
     @ApiOperation(value = "进入直播课堂")
     @GetMapping(value = "/members/lessons/current")
     public CurrentLessonResponse currentLesson() {
+        if (!authenticator.authenticate()) {
+            throw new UnauthorizedException("当前请求需要用户验证");
+        }
 
+        Long memberId = authenticator.getCurrentMemberId();
 
-        return new CurrentLessonResponse();
+        CurrentLessonResponse response = new CurrentLessonResponse();
+
+        return response;
     }
 
 }

@@ -53,17 +53,17 @@ public class RedisAuthenticator implements Authenticator {
     public boolean authenticateForTeacher() {
         WebApiContext context = WebApiContext.current();
 
-        if (Objects.nonNull(context.getMemberId())) {
+        if (Objects.nonNull(context.getTeacherId())) {
             return true;
         }
 
         HttpSession session = context.getRequest().getSession(false);
 
         if (Objects.nonNull(session)) {
-            Object memberId = session.getAttribute(Constants.SESSION_KEY_MEMBER);
+            Object teacherId = session.getAttribute(Constants.SESSION_KEY_TEACHER);
 
-            if (Objects.nonNull(memberId)) {
-                context.setMemberId(Long.valueOf(memberId.toString()));
+            if (Objects.nonNull(teacherId)) {
+                context.setTeacherId(Long.valueOf(teacherId.toString()));
                 return true;
             }
         }

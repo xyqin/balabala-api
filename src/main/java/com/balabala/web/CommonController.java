@@ -1,10 +1,15 @@
 package com.balabala.web;
 
+import com.balabala.domain.BalabalaCampus;
 import com.balabala.domain.BalabalaRegion;
+import com.balabala.repository.BalabalaCampusMapper;
 import com.balabala.repository.BalabalaRegionMapper;
+import com.balabala.repository.example.BalabalaCampusExample;
 import com.balabala.repository.example.BalabalaRegionExample;
+import com.balabala.service.VerificationService;
 import com.balabala.web.exception.BadRequestException;
 import com.balabala.web.exception.InternalServerErrorException;
+import com.balabala.web.response.CampusDto;
 import com.balabala.web.response.RegionDto;
 import com.balabala.web.response.UploadImageResponse;
 import com.google.common.collect.Lists;
@@ -46,11 +51,38 @@ public class CommonController {
     private String imageLink;
 
     @Autowired
+    private VerificationService verificationService;
+
+    @Autowired
+    private BalabalaCampusMapper campusMapper;
+
+    @Autowired
     private BalabalaRegionMapper regionMapper;
+
+    @ApiOperation(value = "获取校区列表")
+    @GetMapping(value = "/campuses")
+    public List<CampusDto> getCampuses() {
+        BalabalaCampusExample example = new BalabalaCampusExample();
+        example.createCriteria().andDeletedEqualTo(Boolean.FALSE);
+        example.setOrderByClause("created_at DESC");
+        List<BalabalaCampus> campuses = campusMapper.selectByExample(example);
+        List<CampusDto> response = Lists.newArrayList();
+
+        for (BalabalaCampus campus : campuses) {
+            CampusDto dto = new CampusDto();
+            dto.setId(campus.getId());
+            dto.setName(campus.getCampusName());
+            response.add(dto);
+        }
+
+        return response;
+    }
 
     @ApiOperation(value = "获取手机验证码")
     @GetMapping(value = "/verifications/code")
     public void newVerificationCode(@RequestParam String number) {
+        String code = verificationService.newVerificationCode(number);
+
         // TODO 发送手机验证码
 
     }

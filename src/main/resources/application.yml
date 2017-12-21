@@ -24,5 +24,9 @@ security:
 mybatis:
   config-location: classpath:mybatis-config.xml
 
+netease:
+  app-key: 2dc284c2f3302d1bf2a364a51c957a99
+  app-secret: 1076df64c067
+
 debug:
   enabled: true

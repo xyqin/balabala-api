@@ -2,6 +2,9 @@ package com.balabala.web;
 
 import com.balabala.auth.Authenticator;
 import com.balabala.domain.*;
+import com.balabala.netease.NeteaseClient;
+import com.balabala.netease.request.ImUserCreateRequest;
+import com.balabala.netease.response.ImUserCreateResponse;
 import com.balabala.repository.*;
 import com.balabala.repository.example.BalabalaClassExample;
 import com.balabala.repository.example.BalabalaClassLessonExample;
@@ -18,11 +21,14 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.time.DateFormatUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
 import java.util.Date;
 import java.util.List;
 import java.util.Objects;
@@ -33,6 +39,9 @@ public class TeacherController {
 
     @Autowired
     private Authenticator authenticator;
+
+    @Autowired
+    private BalabalaCampusMapper campusMapper;
 
     @Autowired
     private BalabalaTeacherMapper teacherMapper;
@@ -49,10 +58,13 @@ public class TeacherController {
     @Autowired
     private BalabalaClassLessonMapper lessonMapper;
 
+    @Autowired
+    private NeteaseClient neteaseClient;
+
     @ApiOperation(value = "教师申请")
     @PostMapping(value = "/teachers/signup")
     @ResponseStatus(value = HttpStatus.NO_CONTENT)
-    public void signup(@Validated @RequestBody SignupTeacherRequest request) {
+    public void signup(@Validated @RequestBody SignupTeacherRequest request) throws IOException {
         BalabalaTeacherExample example = new BalabalaTeacherExample();
         example.createCriteria()
                 .andPhoneNumberEqualTo(request.getPhoneNumber())
@@ -63,14 +75,23 @@ public class TeacherController {
             throw new BadRequestException("手机号已被注册");
         }
 
-        BalabalaTeacher teacher = new BalabalaTeacher();
-        teacher.setCampusId(request.getCampusId());
-        teacher.setFullName(request.getFullName());
-        teacher.setPhoneNumber(request.getPhoneNumber());
-        teacher.setMajor(request.getMajor());
-        teacher.setComeFrom(request.getFrom());
-        teacher.setStatus(BalabalaTeacherStatus.IN_REVIEW);
-        teacherMapper.insertSelective(teacher);
+        // 注册网易云IM账号
+        ImUserCreateRequest imUserCreateRequest = new ImUserCreateRequest();
+        imUserCreateRequest.setAccid("teacher_" + request.getPhoneNumber());
+        ImUserCreateResponse imUserCreateResponse = neteaseClient.execute(imUserCreateRequest);
+
+        if (imUserCreateResponse.isSuccess()) {
+            BalabalaTeacher teacher = new BalabalaTeacher();
+            teacher.setCampusId(request.getCampusId());
+            teacher.setFullName(request.getFullName());
+            teacher.setPhoneNumber(request.getPhoneNumber());
+            teacher.setMajor(request.getMajor());
+            teacher.setComeFrom(request.getFrom());
+            teacher.setStatus(BalabalaTeacherStatus.IN_REVIEW);
+            teacher.setAccid(imUserCreateResponse.getInfo().getAccid());
+            teacher.setToken(imUserCreateResponse.getInfo().getToken());
+            teacherMapper.insertSelective(teacher);
+        }
     }
 
     @ApiOperation(value = "手机号登录")
@@ -95,9 +116,13 @@ public class TeacherController {
         }
 
         authenticator.newSessionForTeacher(teacher.getId());
+        BalabalaCampus campus = campusMapper.selectByPrimaryKey(teacher.getCampusId());
 
         SigninTeacherResponse response = new SigninTeacherResponse();
+        response.setUsername("12345678");
         response.setFullName(teacher.getFullName());
+        response.setAvatar(teacher.getAvatar());
+        response.setCampusName(campus.getCampusName());
         return response;
     }
 
@@ -119,7 +144,6 @@ public class TeacherController {
                 .andDeletedEqualTo(Boolean.FALSE);
         List<BalabalaClassLesson> lessons = lessonMapper.selectByExample(lessonExample);
 
-
         if (CollectionUtils.isEmpty(lessons)) {
             throw new BadRequestException("当前没有正在进行的课程");
         }
@@ -136,8 +160,12 @@ public class TeacherController {
         NewLessonResponse response = new NewLessonResponse();
         response.setId(currentLesson.getId());
         response.setName(currentLesson.getLessonName());
+        response.setStartAt(currentLesson.getStartAt());
+        response.setEndAt(currentLesson.getEndAt());
         response.setTeacherName(teacher.getFullName());
         response.setTeacherUsername(teacher.getUsername());
+        response.setAccid(teacher.getAccid());
+        response.setToken(teacher.getToken());
 
         for (BalabalaClassMember classMember : members) {
             BalabalaMember member = memberMapper.selectByPrimaryKey(classMember.getMemberId());
@@ -148,6 +176,18 @@ public class TeacherController {
             response.getMembers().add(dto);
         }
 
+        if (StringUtils.isBlank(currentLesson.getRoom())) {
+            String room = currentLesson.getLessonName() + "_" + teacher.getFullName() + "_"
+                    + DateFormatUtils.format(new Date(), "yyyyMMddHHmmss");
+            currentLesson.setRoom(room);
+
+            BalabalaClassLesson lessonToBeUpdated = new BalabalaClassLesson();
+            lessonToBeUpdated.setId(currentLesson.getId());
+            lessonToBeUpdated.setRoom(room);
+            lessonMapper.updateByPrimaryKeySelective(lessonToBeUpdated);
+        }
+
+        response.setRoom(currentLesson.getRoom());
         return response;
     }
 

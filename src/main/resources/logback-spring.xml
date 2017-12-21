@@ -5,7 +5,7 @@
     <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
 
     <!-- 开发环境日志设置 -->
-    <springProfile name="test">
+    <springProfile name="development">
 
         <root level="DEBUG">
             <appender-ref ref="CONSOLE"/>
@@ -13,7 +13,7 @@
     </springProfile>
 
     <!-- 测试环境日志设置 -->
-    <springProfile name="test111">
+    <springProfile name="test">
         <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
             <encoder>
                 <pattern>${FILE_LOG_PATTERN}</pattern>

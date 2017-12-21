@@ -13,6 +13,8 @@ public class BalabalaTeacher extends AbstractEntity<Long> {
 
     private String password;
 
+    private String avatar;
+
     private String fullName;
 
     private String phoneNumber;
@@ -20,6 +22,10 @@ public class BalabalaTeacher extends AbstractEntity<Long> {
     private String major;
 
     private String comeFrom;
+
+    private String accid;
+
+    private String token;
 
     private BalabalaTeacherStatus status;
 

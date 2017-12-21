@@ -19,4 +19,8 @@ public class BalabalaMember extends AbstractEntity<Long> {
 
     private String birthday;
 
+    private String accid;
+
+    private String token;
+
 }
