@@ -50,6 +50,9 @@ public class TeacherController {
     private BalabalaMemberMapper memberMapper;
 
     @Autowired
+    private BalabalaMemberLessonMapper memberLessonMapper;
+
+    @Autowired
     private BalabalaClassMapper classMapper;
 
     @Autowired
@@ -173,9 +176,11 @@ public class TeacherController {
             dto.setId(member.getId());
             dto.setNickname(member.getNickname());
             dto.setAvatar(member.getAvatar());
+            dto.setAccid(member.getAccid());
             response.getMembers().add(dto);
         }
 
+        // 处理第一次开课的情况，生成网易云房间，创建学员课时记录
         if (StringUtils.isBlank(currentLesson.getRoom())) {
             String room = currentLesson.getLessonName() + "_" + teacher.getFullName() + "_"
                     + DateFormatUtils.format(new Date(), "yyyyMMddHHmmss");
@@ -185,6 +190,15 @@ public class TeacherController {
             lessonToBeUpdated.setId(currentLesson.getId());
             lessonToBeUpdated.setRoom(room);
             lessonMapper.updateByPrimaryKeySelective(lessonToBeUpdated);
+
+            for (BalabalaClassMember classMember : members) {
+                BalabalaMemberLesson memberLesson = new BalabalaMemberLesson();
+                memberLesson.setMemberId(classMember.getMemberId());
+                memberLesson.setLessonId(currentLesson.getId());
+                memberLesson.setStartAt(currentLesson.getStartAt());
+                memberLesson.setEndAt(currentLesson.getEndAt());
+                memberLessonMapper.insertSelective(memberLesson);
+            }
         }
 
         response.setRoom(currentLesson.getRoom());

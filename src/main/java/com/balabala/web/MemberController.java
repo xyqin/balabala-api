@@ -1,14 +1,12 @@
 package com.balabala.web;
 
 import com.balabala.auth.Authenticator;
-import com.balabala.domain.BalabalaMember;
-import com.balabala.domain.BalabalaMemberPassport;
-import com.balabala.domain.BalabalaMemberPassportProvider;
+import com.balabala.domain.*;
 import com.balabala.netease.NeteaseClient;
 import com.balabala.netease.request.ImUserCreateRequest;
 import com.balabala.netease.response.ImUserCreateResponse;
-import com.balabala.repository.BalabalaMemberMapper;
-import com.balabala.repository.BalabalaMemberPassportMapper;
+import com.balabala.repository.*;
+import com.balabala.repository.example.BalabalaMemberLessonExample;
 import com.balabala.repository.example.BalabalaMemberPassportExample;
 import com.balabala.web.exception.BadRequestException;
 import com.balabala.web.exception.UnauthorizedException;
@@ -31,6 +29,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -48,7 +47,16 @@ public class MemberController {
     private BalabalaMemberMapper memberMapper;
 
     @Autowired
+    private BalabalaMemberLessonMapper memberLessonMapper;
+
+    @Autowired
     private BalabalaMemberPassportMapper memberPassportMapper;
+
+    @Autowired
+    private BalabalaClassLessonMapper lessonMapper;
+
+    @Autowired
+    private BalabalaTeacherMapper teacherMapper;
 
     @Autowired
     private NeteaseClient neteaseClient;
@@ -116,7 +124,7 @@ public class MemberController {
         authenticator.newSession(member.getId());
 
         SigninResponse response = new SigninResponse();
-        response.setMemberId(member.getId());
+        response.setNickname(member.getNickname());
         return response;
     }
 
@@ -157,6 +165,45 @@ public class MemberController {
         authenticator.invalidateSession();
     }
 
+    @ApiOperation(value = "进入直播课堂")
+    @GetMapping(value = "/members/lessons/current")
+    public CurrentLessonResponse currentLesson() {
+        if (!authenticator.authenticate()) {
+            throw new UnauthorizedException("当前请求需要用户验证");
+        }
+
+        Long memberId = authenticator.getCurrentMemberId();
+
+        Date now = new Date();
+        BalabalaMemberLessonExample lessonExample = new BalabalaMemberLessonExample();
+        lessonExample.createCriteria()
+                .andMemberIdEqualTo(memberId)
+                .andStartAtLessThan(now)
+                .andEndAtGreaterThan(now)
+                .andDeletedEqualTo(Boolean.FALSE);
+        List<BalabalaMemberLesson> lessons = memberLessonMapper.selectByExample(lessonExample);
+
+        if (CollectionUtils.isEmpty(lessons)) {
+            throw new BadRequestException("当前没有正在进行的课程");
+        }
+
+        BalabalaMember member = memberMapper.selectByPrimaryKey(memberId);
+        BalabalaMemberLesson currentLesson = lessons.get(0);
+        BalabalaClassLesson lessonInfo = lessonMapper.selectByPrimaryKey(currentLesson.getLessonId());
+        BalabalaTeacher teacher = teacherMapper.selectByPrimaryKey(lessonInfo.getTeacherId());
+
+        CurrentLessonResponse response = new CurrentLessonResponse();
+        response.setId(lessonInfo.getId());
+        response.setName(lessonInfo.getLessonName());
+        response.setStartAt(lessonInfo.getStartAt());
+        response.setEndAt(lessonInfo.getEndAt());
+        response.setRoom(lessonInfo.getRoom());
+        response.setTeacherName(teacher.getFullName());
+        response.setAccid(member.getAccid());
+        response.setToken(member.getToken());
+        return response;
+    }
+
     @ApiOperation(value = "获取课程回顾")
     @GetMapping(value = "/members/lessons/history")
     public List<LessonDto> getLessonHistory(@RequestParam int page, @RequestParam int size) {
@@ -168,20 +215,6 @@ public class MemberController {
 
 
         return Lists.newArrayList();
-    }
-
-    @ApiOperation(value = "进入直播课堂")
-    @GetMapping(value = "/members/lessons/current")
-    public CurrentLessonResponse currentLesson() {
-        if (!authenticator.authenticate()) {
-            throw new UnauthorizedException("当前请求需要用户验证");
-        }
-
-        Long memberId = authenticator.getCurrentMemberId();
-
-        CurrentLessonResponse response = new CurrentLessonResponse();
-
-        return response;
     }
 
 }

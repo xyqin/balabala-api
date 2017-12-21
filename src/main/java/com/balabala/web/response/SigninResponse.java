@@ -8,6 +8,6 @@ import lombok.Data;
 @Data
 public class SigninResponse {
 
-    private Long memberId;
+    private String nickname;
 
 }
