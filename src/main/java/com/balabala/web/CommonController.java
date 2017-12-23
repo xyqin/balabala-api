@@ -7,7 +7,6 @@ import com.balabala.repository.BalabalaRegionMapper;
 import com.balabala.repository.example.BalabalaCampusExample;
 import com.balabala.repository.example.BalabalaRegionExample;
 import com.balabala.service.VerificationService;
-import com.balabala.web.exception.BadRequestException;
 import com.balabala.web.exception.InternalServerErrorException;
 import com.balabala.web.response.CampusDto;
 import com.balabala.web.response.RegionDto;
@@ -63,7 +62,7 @@ public class CommonController {
 
     @ApiOperation(value = "获取校区列表")
     @GetMapping(value = "/campuses")
-    public List<CampusDto> getCampuses() {
+    public ApiEntity getCampuses() {
         BalabalaCampusExample example = new BalabalaCampusExample();
         example.createCriteria().andDeletedEqualTo(Boolean.FALSE);
         example.setOrderByClause("created_at DESC");
@@ -77,21 +76,22 @@ public class CommonController {
             response.add(dto);
         }
 
-        return response;
+        return new ApiEntity(response);
     }
 
     @ApiOperation(value = "获取手机验证码")
     @GetMapping(value = "/verifications/code")
-    public void newVerificationCode(@RequestParam String number) {
+    public ApiEntity newVerificationCode(@RequestParam String number) {
         String code = verificationService.newVerificationCode(number);
 
         // TODO 发送手机验证码
 
+        return new ApiEntity();
     }
 
     @ApiOperation(value = "获取地区列表")
     @GetMapping(value = "/regions")
-    public List<RegionDto> getRegions() {
+    public ApiEntity getRegions() {
         BalabalaRegionExample example = new BalabalaRegionExample();
         example.createCriteria().andParentIdEqualTo(0L).andDeletedEqualTo(Boolean.FALSE);
         example.setOrderByClause("position DESC");
@@ -106,21 +106,21 @@ public class CommonController {
             response.add(dto);
         }
 
-        return response;
+        return new ApiEntity(response);
     }
 
     @ApiOperation(value = "上传图片文件")
     @PostMapping(value = "/storage/images")
-    public UploadResponse uploadImage(@RequestParam("file") Part file) {
+    public ApiEntity uploadImage(@RequestParam("file") Part file) {
         int fileSizeInKB = BigInteger.valueOf(file.getSize()).divide(BigInteger.valueOf(1024)).intValue();
         String submittedFilename = file.getSubmittedFileName();
 
         if (!FilenameUtils.isExtension(submittedFilename, SUPPORTED_IMAGE_EXTENSIONS)) {
-            throw new BadRequestException("不支持的文件类型");
+            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "不支持的文件类型");
         }
 
         if (fileSizeInKB > MAX_IMAGE_SIZE_KB) {
-            throw new BadRequestException("文件大小不能超过" + MAX_IMAGE_SIZE_KB + "KB");
+            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "文件大小不能超过" + MAX_IMAGE_SIZE_KB + "KB");
         }
 
         String currentDate = null;
@@ -140,16 +140,16 @@ public class CommonController {
         String link = imageLink + "/image/" + currentDate + "/" + filename;
         UploadResponse response = new UploadResponse();
         response.setLink(link);
-        return response;
+        return new ApiEntity(response);
     }
 
     @ApiOperation(value = "上传图片文件")
     @PostMapping(value = "/storage/videos")
-    public UploadResponse uploadVideo(@RequestParam("file") Part file) {
+    public ApiEntity uploadVideo(@RequestParam("file") Part file) {
         String submittedFilename = file.getSubmittedFileName();
 
         if (!FilenameUtils.isExtension(submittedFilename, SUPPORTED_VIDEO_EXTENSIONS)) {
-            throw new BadRequestException("不支持的文件类型");
+            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "不支持的文件类型");
         }
 
         String currentDate = null;
@@ -163,13 +163,13 @@ public class CommonController {
             File local = new File(localPath + filename);
             FileUtils.writeByteArrayToFile(local, bytes);
         } catch (IOException e) {
-            throw new InternalServerErrorException(e.getMessage());
+            return new ApiEntity(ApiStatus.STATUS_500.getCode(), e.getMessage());
         }
 
         String link = imageLink + "/video/" + currentDate + "/" + filename;
         UploadResponse response = new UploadResponse();
         response.setLink(link);
-        return response;
+        return new ApiEntity(response);
     }
 
 }

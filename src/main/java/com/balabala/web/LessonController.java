@@ -31,7 +31,7 @@ public class LessonController {
 
     @ApiOperation(value = "获取课程回顾详情")
     @GetMapping(value = "/lessons/{id}")
-    public GetLessonResponse getLesson(@RequestParam Long id) {
+    public ApiEntity getLesson(@RequestParam Long id) {
         BalabalaClassLesson lesson = lessonMapper.selectByPrimaryKey(id);
         BalabalaClass aClass = classMapper.selectByPrimaryKey(lesson.getClassId());
         BalabalaTeacher teacher = teacherMapper.selectByPrimaryKey(lesson.getTeacherId());
@@ -43,7 +43,7 @@ public class LessonController {
         response.setTeacherName(teacher.getFullName());
         response.setDuration(100);
         response.setVideo("http://www.baidu.com");
-        return response;
+        return new ApiEntity(response);
     }
 
 }

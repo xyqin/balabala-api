@@ -11,6 +11,8 @@ public class BalabalaMemberLesson extends AbstractEntity<Long> {
 
     private Long memberId;
 
+    private Long classId;
+
     private Long lessonId;
 
     private Date startAt;

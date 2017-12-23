@@ -10,8 +10,6 @@ import com.balabala.repository.example.BalabalaClassExample;
 import com.balabala.repository.example.BalabalaClassLessonExample;
 import com.balabala.repository.example.BalabalaClassMemberExample;
 import com.balabala.repository.example.BalabalaTeacherExample;
-import com.balabala.web.exception.BadRequestException;
-import com.balabala.web.exception.UnauthorizedException;
 import com.balabala.web.request.ApplyClassRequest;
 import com.balabala.web.request.SigninTeacherRequest;
 import com.balabala.web.request.SignupTeacherRequest;
@@ -24,7 +22,6 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.time.DateFormatUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -66,8 +63,7 @@ public class TeacherController {
 
     @ApiOperation(value = "教师申请")
     @PostMapping(value = "/teachers/signup")
-    @ResponseStatus(value = HttpStatus.NO_CONTENT)
-    public void signup(@Validated @RequestBody SignupTeacherRequest request) throws IOException {
+    public ApiEntity signup(@Validated @RequestBody SignupTeacherRequest request) throws IOException {
         BalabalaTeacherExample example = new BalabalaTeacherExample();
         example.createCriteria()
                 .andPhoneNumberEqualTo(request.getPhoneNumber())
@@ -75,7 +71,7 @@ public class TeacherController {
         long count = teacherMapper.countByExample(example);
 
         if (count > 0) {
-            throw new BadRequestException("手机号已被注册");
+            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "手机号已被注册");
         }
 
         // 注册网易云IM账号
@@ -95,27 +91,29 @@ public class TeacherController {
             teacher.setToken(imUserCreateResponse.getInfo().getToken());
             teacherMapper.insertSelective(teacher);
         }
+
+        return new ApiEntity();
     }
 
     @ApiOperation(value = "手机号登录")
     @PostMapping(value = "/teachers/signin")
-    public SigninTeacherResponse signin(@Validated @RequestBody SigninTeacherRequest request) {
+    public ApiEntity signin(@Validated @RequestBody SigninTeacherRequest request) {
         BalabalaTeacherExample example = new BalabalaTeacherExample();
         example.or().andPhoneNumberEqualTo(request.getLoginName()).andDeletedEqualTo(Boolean.FALSE);
         example.or().andUsernameEqualTo(request.getLoginName()).andDeletedEqualTo(Boolean.FALSE);
         List<BalabalaTeacher> teachers = teacherMapper.selectByExample(example);
 
         if (CollectionUtils.isEmpty(teachers)) {
-            throw new BadRequestException("手机号或账号不存在");
+            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "手机号或账号不存在");
         }
 
         BalabalaTeacher teacher = teachers.get(0);
         if (!Objects.equals(teacher.getStatus(), BalabalaTeacherStatus.ENABLED)) {
-            throw new BadRequestException("账号状态异常, status=" + teacher.getStatus().name());
+            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "账号状态异常, status=" + teacher.getStatus().name());
         }
 
         if (!Objects.equals(DigestUtils.md5Hex(request.getPassword()), teacher.getPassword())) {
-            throw new BadRequestException("密码错误");
+            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "密码错误");
         }
 
         authenticator.newSessionForTeacher(teacher.getId());
@@ -126,14 +124,14 @@ public class TeacherController {
         response.setFullName(teacher.getFullName());
         response.setAvatar(teacher.getAvatar());
         response.setCampusName(campus.getCampusName());
-        return response;
+        return new ApiEntity(response);
     }
 
     @ApiOperation(value = "开始授课")
     @GetMapping(value = "/teachers/lessons/current")
-    public NewLessonResponse newLesson() {
+    public ApiEntity newLesson() {
         if (!authenticator.authenticateForTeacher()) {
-            throw new UnauthorizedException("当前请求需要用户验证");
+            return new ApiEntity(ApiStatus.STATUS_401);
         }
 
         Long teacherId = authenticator.getCurrentTeacherId();
@@ -148,7 +146,7 @@ public class TeacherController {
         List<BalabalaClassLesson> lessons = lessonMapper.selectByExample(lessonExample);
 
         if (CollectionUtils.isEmpty(lessons)) {
-            throw new BadRequestException("当前没有正在进行的课程");
+            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "当前没有正在进行的课程");
         }
 
         BalabalaClassLesson currentLesson = lessons.get(0);
@@ -194,6 +192,7 @@ public class TeacherController {
             for (BalabalaClassMember classMember : members) {
                 BalabalaMemberLesson memberLesson = new BalabalaMemberLesson();
                 memberLesson.setMemberId(classMember.getMemberId());
+                memberLesson.setClassId(currentLesson.getClassId());
                 memberLesson.setLessonId(currentLesson.getId());
                 memberLesson.setStartAt(currentLesson.getStartAt());
                 memberLesson.setEndAt(currentLesson.getEndAt());
@@ -202,14 +201,14 @@ public class TeacherController {
         }
 
         response.setRoom(currentLesson.getRoom());
-        return response;
+        return new ApiEntity(response);
     }
 
     @ApiOperation(value = "获取备课列表")
     @GetMapping(value = "/teachers/lessons")
-    public List<LessonDto> getLessons() {
+    public ApiEntity getLessons() {
         if (!authenticator.authenticateForTeacher()) {
-            throw new UnauthorizedException("当前请求需要用户验证");
+            return new ApiEntity(ApiStatus.STATUS_401);
         }
 
         Long teacherId = authenticator.getCurrentTeacherId();
@@ -230,14 +229,14 @@ public class TeacherController {
             response.add(dto);
         }
 
-        return response;
+        return new ApiEntity(response);
     }
 
     @ApiOperation(value = "获取授课历史")
     @GetMapping(value = "/teachers/lessons/history")
-    public List<LessonDto> getLessonHistory(@RequestParam int page, @RequestParam int size) {
+    public ApiEntity getLessonHistory(@RequestParam int page, @RequestParam int size) {
         if (!authenticator.authenticateForTeacher()) {
-            throw new UnauthorizedException("当前请求需要用户验证");
+            return new ApiEntity(ApiStatus.STATUS_401);
         }
 
         Long teacherId = authenticator.getCurrentTeacherId();
@@ -259,36 +258,59 @@ public class TeacherController {
             response.add(dto);
         }
 
-        return response;
+        return new ApiEntity(response);
     }
 
     @ApiOperation(value = "获取班级列表")
     @GetMapping(value = "/teachers/classes")
-    public List<ClassDto> getClasses(@RequestParam int page, @RequestParam int size) {
+    public ApiEntity getClasses() {
+        if (!authenticator.authenticateForTeacher()) {
+            return new ApiEntity(ApiStatus.STATUS_401);
+        }
+
+        Long teacherId = authenticator.getCurrentTeacherId();
+
         BalabalaClassExample example = new BalabalaClassExample();
         example.createCriteria()
+                .andTeacherIdEqualTo(teacherId)
                 .andStatusEqualTo(BalabalaClassStatus.ONGOING.name())
                 .andDeletedEqualTo(Boolean.FALSE);
-        example.setStartRow((page - 1) * size);
-        example.setPageSize(size);
         example.setOrderByClause("created_at DESC");
         List<BalabalaClass> classes = classMapper.selectByExample(example);
         List<ClassDto> response = Lists.newArrayList();
 
-        for (BalabalaClass cls : classes) {
+        for (BalabalaClass aClass : classes) {
             ClassDto dto = new ClassDto();
-            dto.setId(cls.getId());
-            dto.setName(cls.getClassName());
+            dto.setId(aClass.getId());
+            dto.setName(aClass.getClassName());
+
+            BalabalaClassMemberExample memberExample = new BalabalaClassMemberExample();
+            memberExample.createCriteria()
+                    .andClassIdEqualTo(aClass.getId())
+                    .andDeletedEqualTo(Boolean.FALSE);
+            List<BalabalaClassMember> classMembers = classMemberMapper.selectByExample(memberExample);
+
+            for (BalabalaClassMember classMember : classMembers) {
+                BalabalaMember member = memberMapper.selectByPrimaryKey(classMember.getMemberId());
+                ClassMemberDto mDto = new ClassMemberDto();
+                mDto.setId(member.getId());
+                mDto.setNickname(member.getNickname());
+                mDto.setAvatar(member.getAvatar());
+                mDto.setAccid(member.getAccid());
+                dto.getMembers().add(mDto);
+            }
+
             response.add(dto);
         }
-        return response;
+
+        return new ApiEntity(response);
     }
 
     @ApiOperation(value = "申请开班")
     @PostMapping(value = "/teachers/classes")
-    public void getClasses(@RequestBody ApplyClassRequest request) {
+    public ApiEntity getClasses(@RequestBody ApplyClassRequest request) {
         if (!authenticator.authenticateForTeacher()) {
-            throw new UnauthorizedException("当前请求需要用户验证");
+            return new ApiEntity(ApiStatus.STATUS_401);
         }
 
         Long teacherId = authenticator.getCurrentTeacherId();
@@ -298,6 +320,7 @@ public class TeacherController {
         aClass.setTeacherId(teacherId);
         aClass.setStatus(BalabalaClassStatus.IN_REVIEW);
         classMapper.insertSelective(aClass);
+        return new ApiEntity();
     }
 
 }

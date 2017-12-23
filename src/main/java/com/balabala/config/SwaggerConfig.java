@@ -42,7 +42,9 @@ public class SwaggerConfig {
                 PathSelectors.regex("/lessons.*"),
                 PathSelectors.regex("/members.*"),
                 PathSelectors.regex("/regions.*"),
-                PathSelectors.regex("/teachers.*")
+                PathSelectors.regex("/storage.*"),
+                PathSelectors.regex("/teachers.*"),
+                PathSelectors.regex("/verifications.*")
         );
     }
 

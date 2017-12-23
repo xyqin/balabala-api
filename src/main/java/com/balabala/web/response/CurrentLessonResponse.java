@@ -1,8 +1,10 @@
 package com.balabala.web.response;
 
+import com.google.common.collect.Lists;
 import lombok.Data;
 
 import java.util.Date;
+import java.util.List;
 
 @Data
 public class CurrentLessonResponse {
@@ -24,5 +26,7 @@ public class CurrentLessonResponse {
     private String room;
 
     private Date timestamp = new Date();
+
+    private List<ClassMemberDto> members = Lists.newArrayList();
 
 }

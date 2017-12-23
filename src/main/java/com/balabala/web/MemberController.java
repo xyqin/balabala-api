@@ -6,17 +6,13 @@ import com.balabala.netease.NeteaseClient;
 import com.balabala.netease.request.ImUserCreateRequest;
 import com.balabala.netease.response.ImUserCreateResponse;
 import com.balabala.repository.*;
+import com.balabala.repository.example.BalabalaClassMemberExample;
 import com.balabala.repository.example.BalabalaMemberLessonExample;
 import com.balabala.repository.example.BalabalaMemberPassportExample;
-import com.balabala.web.exception.BadRequestException;
-import com.balabala.web.exception.UnauthorizedException;
 import com.balabala.web.request.SigninRequest;
 import com.balabala.web.request.SignupRequest;
 import com.balabala.web.request.UpdateMemberInfoRequest;
-import com.balabala.web.response.CurrentLessonResponse;
-import com.balabala.web.response.GetMemberResponse;
-import com.balabala.web.response.LessonDto;
-import com.balabala.web.response.SigninResponse;
+import com.balabala.web.response.*;
 import com.google.common.collect.Lists;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -24,7 +20,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -59,14 +54,16 @@ public class MemberController {
     private BalabalaTeacherMapper teacherMapper;
 
     @Autowired
+    private BalabalaClassMemberMapper classMemberMapper;
+
+    @Autowired
     private NeteaseClient neteaseClient;
 
     /* 会员信息及账号相关接口 */
 
     @ApiOperation(value = "注册会员")
     @PostMapping(value = "/members/signup")
-    @ResponseStatus(value = HttpStatus.NO_CONTENT)
-    public void signup(@Validated @RequestBody SignupRequest request) throws IOException {
+    public ApiEntity signup(@Validated @RequestBody SignupRequest request) throws IOException {
         // TODO 检查手机号验证码
 
         BalabalaMemberPassportExample example = new BalabalaMemberPassportExample();
@@ -77,7 +74,7 @@ public class MemberController {
         List<BalabalaMemberPassport> passports = memberPassportMapper.selectByExample(example);
 
         if (CollectionUtils.isNotEmpty(passports)) {
-            throw new BadRequestException("手机号已被注册");
+            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "手机号已被注册");
         }
 
         // 注册网易云IM账号
@@ -102,11 +99,13 @@ public class MemberController {
             // 往session中设置会员ID
             authenticator.newSession(member.getId());
         }
+
+        return new ApiEntity();
     }
 
     @ApiOperation(value = "手机号登录")
     @PostMapping(value = "/members/signin")
-    public SigninResponse signin(@Validated @RequestBody SigninRequest request) {
+    public ApiEntity signin(@Validated @RequestBody SigninRequest request) {
         BalabalaMemberPassportExample example = new BalabalaMemberPassportExample();
         example.createCriteria()
                 .andProviderEqualTo(BalabalaMemberPassportProvider.PHONE.name())
@@ -115,7 +114,7 @@ public class MemberController {
         List<BalabalaMemberPassport> passports = memberPassportMapper.selectByExample(example);
 
         if (CollectionUtils.isEmpty(passports)) {
-            throw new BadRequestException("手机号尚未注册");
+            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "手机号尚未注册");
         }
 
         BalabalaMember member = memberMapper.selectByPrimaryKey(passports.get(0).getMemberId());
@@ -125,14 +124,14 @@ public class MemberController {
 
         SigninResponse response = new SigninResponse();
         response.setNickname(member.getNickname());
-        return response;
+        return new ApiEntity(response);
     }
 
     @ApiOperation(value = "获取会员信息")
     @GetMapping(value = "/members")
-    public GetMemberResponse getMember() {
+    public ApiEntity getMember() {
         if (!authenticator.authenticate()) {
-            throw new UnauthorizedException("当前请求需要用户验证");
+            return new ApiEntity(ApiStatus.STATUS_401);
         }
 
         Long memberId = authenticator.getCurrentMemberId();
@@ -141,35 +140,35 @@ public class MemberController {
         GetMemberResponse response = new GetMemberResponse();
 
 
-        return response;
+        return new ApiEntity(response);
     }
 
     @ApiOperation(value = "更新会员信息")
     @PostMapping(value = "/members/update")
-    @ResponseStatus(value = HttpStatus.NO_CONTENT)
-    public void updateMemberInfo(@RequestBody UpdateMemberInfoRequest request) {
+    public ApiEntity updateMemberInfo(@RequestBody UpdateMemberInfoRequest request) {
         if (!authenticator.authenticate()) {
-            throw new UnauthorizedException("当前请求需要用户验证");
+            return new ApiEntity(ApiStatus.STATUS_401);
         }
 
         Long memberId = authenticator.getCurrentMemberId();
 
 
         memberMapper.updateByPrimaryKeySelective(null);
+        return new ApiEntity();
     }
 
     @ApiOperation(value = "会员登出")
     @PostMapping(value = "/members/signout")
-    @ResponseStatus(value = HttpStatus.NO_CONTENT)
-    public void signout() {
+    public ApiEntity signout() {
         authenticator.invalidateSession();
+        return new ApiEntity();
     }
 
     @ApiOperation(value = "进入直播课堂")
     @GetMapping(value = "/members/lessons/current")
-    public CurrentLessonResponse currentLesson() {
+    public ApiEntity currentLesson() {
         if (!authenticator.authenticate()) {
-            throw new UnauthorizedException("当前请求需要用户验证");
+            return new ApiEntity(ApiStatus.STATUS_401);
         }
 
         Long memberId = authenticator.getCurrentMemberId();
@@ -184,13 +183,19 @@ public class MemberController {
         List<BalabalaMemberLesson> lessons = memberLessonMapper.selectByExample(lessonExample);
 
         if (CollectionUtils.isEmpty(lessons)) {
-            throw new BadRequestException("当前没有正在进行的课程");
+            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "当前没有正在进行的课程");
         }
 
         BalabalaMember member = memberMapper.selectByPrimaryKey(memberId);
         BalabalaMemberLesson currentLesson = lessons.get(0);
         BalabalaClassLesson lessonInfo = lessonMapper.selectByPrimaryKey(currentLesson.getLessonId());
         BalabalaTeacher teacher = teacherMapper.selectByPrimaryKey(lessonInfo.getTeacherId());
+
+        BalabalaClassMemberExample memberExample = new BalabalaClassMemberExample();
+        memberExample.createCriteria()
+                .andClassIdEqualTo(currentLesson.getClassId())
+                .andDeletedEqualTo(Boolean.FALSE);
+        List<BalabalaClassMember> members = classMemberMapper.selectByExample(memberExample);
 
         CurrentLessonResponse response = new CurrentLessonResponse();
         response.setId(lessonInfo.getId());
@@ -201,14 +206,25 @@ public class MemberController {
         response.setTeacherName(teacher.getFullName());
         response.setAccid(member.getAccid());
         response.setToken(member.getToken());
-        return response;
+
+        for (BalabalaClassMember classMember : members) {
+            BalabalaMember cMember = memberMapper.selectByPrimaryKey(classMember.getMemberId());
+            ClassMemberDto dto = new ClassMemberDto();
+            dto.setId(cMember.getId());
+            dto.setNickname(cMember.getNickname());
+            dto.setAvatar(cMember.getAvatar());
+            dto.setAccid(cMember.getAccid());
+            response.getMembers().add(dto);
+        }
+
+        return new ApiEntity(response);
     }
 
     @ApiOperation(value = "获取课程回顾")
     @GetMapping(value = "/members/lessons/history")
-    public List<LessonDto> getLessonHistory(@RequestParam int page, @RequestParam int size) {
+    public ApiEntity getLessonHistory(@RequestParam int page, @RequestParam int size) {
         if (!authenticator.authenticate()) {
-            throw new UnauthorizedException("当前请求需要用户验证");
+            return new ApiEntity(ApiStatus.STATUS_401);
         }
 
         Long memberId = authenticator.getCurrentMemberId();
@@ -235,7 +251,7 @@ public class MemberController {
             response.add(dto);
         }
 
-        return response;
+        return new ApiEntity(response);
     }
 
 }
