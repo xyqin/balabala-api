@@ -3,7 +3,7 @@ package com.balabala.web.response;
 import lombok.Data;
 
 @Data
-public class UploadImageResponse {
+public class UploadResponse {
 
     private String link;
 

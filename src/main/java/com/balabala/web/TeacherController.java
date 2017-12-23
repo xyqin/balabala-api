@@ -235,7 +235,7 @@ public class TeacherController {
 
     @ApiOperation(value = "获取授课历史")
     @GetMapping(value = "/teachers/lessons/history")
-    public List<LessonDto> getLessonHistory() {
+    public List<LessonDto> getLessonHistory(@RequestParam int page, @RequestParam int size) {
         if (!authenticator.authenticateForTeacher()) {
             throw new UnauthorizedException("当前请求需要用户验证");
         }
@@ -246,6 +246,8 @@ public class TeacherController {
         BalabalaClassLessonExample example = new BalabalaClassLessonExample();
         example.or().andTeacherIdEqualTo(teacherId).andEndAtLessThan(now).andDeletedEqualTo(Boolean.FALSE);
         example.or().andTeacherIdEqualTo(teacherId).andStartAtLessThan(now).andEndAtGreaterThan(now).andDeletedEqualTo(Boolean.FALSE);
+        example.setStartRow((page - 1) * size);
+        example.setPageSize(size);
         example.setOrderByClause("end_at DESC");
         List<BalabalaClassLesson> lessons = lessonMapper.selectByExample(example);
         List<LessonDto> response = Lists.newArrayList();
@@ -262,11 +264,14 @@ public class TeacherController {
 
     @ApiOperation(value = "获取班级列表")
     @GetMapping(value = "/teachers/classes")
-    public List<ClassDto> getClasses() {
+    public List<ClassDto> getClasses(@RequestParam int page, @RequestParam int size) {
         BalabalaClassExample example = new BalabalaClassExample();
         example.createCriteria()
                 .andStatusEqualTo(BalabalaClassStatus.ONGOING.name())
                 .andDeletedEqualTo(Boolean.FALSE);
+        example.setStartRow((page - 1) * size);
+        example.setPageSize(size);
+        example.setOrderByClause("created_at DESC");
         List<BalabalaClass> classes = classMapper.selectByExample(example);
         List<ClassDto> response = Lists.newArrayList();
 

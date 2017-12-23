@@ -213,8 +213,29 @@ public class MemberController {
 
         Long memberId = authenticator.getCurrentMemberId();
 
+        Date now = new Date();
+        BalabalaMemberLessonExample example = new BalabalaMemberLessonExample();
+        example.createCriteria()
+                .andMemberIdEqualTo(memberId)
+                .andEndAtLessThan(now)
+                .andDeletedEqualTo(Boolean.FALSE);
+        example.setStartRow((page - 1) * size);
+        example.setPageSize(size);
+        example.setOrderByClause("end_at DESC");
+        List<BalabalaMemberLesson> memberLessons = memberLessonMapper.selectByExample(example);
+        List<LessonDto> response = Lists.newArrayList();
 
-        return Lists.newArrayList();
+        for (BalabalaMemberLesson memberLesson : memberLessons) {
+            BalabalaClassLesson lesson = lessonMapper.selectByPrimaryKey(memberLesson.getLessonId());
+            LessonDto dto = new LessonDto();
+            dto.setId(lesson.getId());
+            dto.setName(lesson.getLessonName());
+            dto.setDuration(0);
+            dto.setThumbnail(lesson.getThumbnail());
+            response.add(dto);
+        }
+
+        return response;
     }
 
 }

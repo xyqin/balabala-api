@@ -23,7 +23,7 @@ mybatis:
   config-location: classpath:mybatis-config.xml
 
 storage:
-  local: /opt/balabala/storage
+  local: /data/balabala
   link: http://47.100.57.236:8000
 
 netease:

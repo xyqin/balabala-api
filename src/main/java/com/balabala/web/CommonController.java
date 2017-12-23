@@ -11,7 +11,7 @@ import com.balabala.web.exception.BadRequestException;
 import com.balabala.web.exception.InternalServerErrorException;
 import com.balabala.web.response.CampusDto;
 import com.balabala.web.response.RegionDto;
-import com.balabala.web.response.UploadImageResponse;
+import com.balabala.web.response.UploadResponse;
 import com.google.common.collect.Lists;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -40,7 +40,9 @@ import java.util.List;
 @RestController
 public class CommonController {
 
-    private static final String[] SUPPORTED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "gif"};
+    private static final String[] SUPPORTED_IMAGE_EXTENSIONS = {"jpg", "jpeg"};
+
+    private static final String[] SUPPORTED_VIDEO_EXTENSIONS = {"mp4", "flv"};
 
     private static final int MAX_IMAGE_SIZE_KB = 2048;
 
@@ -107,9 +109,9 @@ public class CommonController {
         return response;
     }
 
-    @ApiOperation(value = "上传图片")
-    @PostMapping(value = "/images/upload")
-    public UploadImageResponse uploadImage(@RequestParam("file") Part file) {
+    @ApiOperation(value = "上传图片文件")
+    @PostMapping(value = "/storage/images")
+    public UploadResponse uploadImage(@RequestParam("file") Part file) {
         int fileSizeInKB = BigInteger.valueOf(file.getSize()).divide(BigInteger.valueOf(1024)).intValue();
         String submittedFilename = file.getSubmittedFileName();
 
@@ -136,7 +138,36 @@ public class CommonController {
         }
 
         String link = imageLink + "/image/" + currentDate + "/" + filename;
-        UploadImageResponse response = new UploadImageResponse();
+        UploadResponse response = new UploadResponse();
+        response.setLink(link);
+        return response;
+    }
+
+    @ApiOperation(value = "上传图片文件")
+    @PostMapping(value = "/storage/videos")
+    public UploadResponse uploadVideo(@RequestParam("file") Part file) {
+        String submittedFilename = file.getSubmittedFileName();
+
+        if (!FilenameUtils.isExtension(submittedFilename, SUPPORTED_VIDEO_EXTENSIONS)) {
+            throw new BadRequestException("不支持的文件类型");
+        }
+
+        String currentDate = null;
+        String filename = null;
+
+        try {
+            byte[] bytes = IOUtils.toByteArray(file.getInputStream());
+            currentDate = DateFormatUtils.format(new Date(), "yyyyMMdd");
+            String localPath = imageStorage + "/video/" + currentDate + "/";
+            filename = DigestUtils.md5Hex(bytes) + "." + FilenameUtils.getExtension(submittedFilename);
+            File local = new File(localPath + filename);
+            FileUtils.writeByteArrayToFile(local, bytes);
+        } catch (IOException e) {
+            throw new InternalServerErrorException(e.getMessage());
+        }
+
+        String link = imageLink + "/video/" + currentDate + "/" + filename;
+        UploadResponse response = new UploadResponse();
         response.setLink(link);
         return response;
     }

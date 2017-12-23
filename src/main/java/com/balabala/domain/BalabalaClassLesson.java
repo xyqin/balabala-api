@@ -23,6 +23,10 @@ public class BalabalaClassLesson extends AbstractEntity<Long> {
 
     private Date endAt;
 
+    private String thumbnail;
+
+    private String video;
+
     private String room;
 
 }
