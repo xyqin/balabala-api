@@ -366,6 +366,16 @@ public class TeacherController {
         aClass.setTeacherId(teacherId);
         aClass.setStatus(BalabalaClassStatus.IN_REVIEW);
         classMapper.insertSelective(aClass);
+
+        if (CollectionUtils.isNotEmpty(request.getMemberIds())) {
+            for (Long memberId : request.getMemberIds()) {
+                BalabalaClassMember classMember = new BalabalaClassMember();
+                classMember.setClassId(aClass.getId());
+                classMember.setMemberId(memberId);
+                classMemberMapper.insertSelective(classMember);
+            }
+        }
+
         return new ApiEntity();
     }
 

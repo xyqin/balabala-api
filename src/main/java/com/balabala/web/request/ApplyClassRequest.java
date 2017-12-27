@@ -4,6 +4,7 @@ import lombok.Data;
 import org.hibernate.validator.constraints.NotBlank;
 
 import javax.validation.constraints.NotNull;
+import java.util.List;
 
 @Data
 public class ApplyClassRequest {
@@ -19,5 +20,7 @@ public class ApplyClassRequest {
 
     @NotBlank
     private String className;
+
+    private List<Long> memberIds;
 
 }
