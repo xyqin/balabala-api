@@ -6,13 +6,8 @@ import com.balabala.netease.NeteaseClient;
 import com.balabala.netease.request.ImUserCreateRequest;
 import com.balabala.netease.response.ImUserCreateResponse;
 import com.balabala.repository.*;
-import com.balabala.repository.example.BalabalaClassExample;
-import com.balabala.repository.example.BalabalaClassLessonExample;
-import com.balabala.repository.example.BalabalaClassMemberExample;
-import com.balabala.repository.example.BalabalaTeacherExample;
-import com.balabala.web.request.ApplyClassRequest;
-import com.balabala.web.request.SigninTeacherRequest;
-import com.balabala.web.request.SignupTeacherRequest;
+import com.balabala.repository.example.*;
+import com.balabala.web.request.*;
 import com.balabala.web.response.*;
 import com.google.common.collect.Lists;
 import io.swagger.annotations.Api;
@@ -47,6 +42,9 @@ public class TeacherController {
     private BalabalaMemberMapper memberMapper;
 
     @Autowired
+    private BalabalaMemberPassportMapper passportMapper;
+
+    @Autowired
     private BalabalaMemberLessonMapper memberLessonMapper;
 
     @Autowired
@@ -57,6 +55,9 @@ public class TeacherController {
 
     @Autowired
     private BalabalaClassLessonMapper lessonMapper;
+
+    @Autowired
+    private BalabalaMemberCommentMapper commentMapper;
 
     @Autowired
     private NeteaseClient neteaseClient;
@@ -125,6 +126,50 @@ public class TeacherController {
         response.setAvatar(teacher.getAvatar());
         response.setCampusName(campus.getCampusName());
         return new ApiEntity(response);
+    }
+
+    @ApiOperation(value = "获取教师信息")
+    @GetMapping(value = "/teachers")
+    public ApiEntity getTeacherInfo() {
+        if (!authenticator.authenticateForTeacher()) {
+            return new ApiEntity(ApiStatus.STATUS_401);
+        }
+
+        Long teacherId = authenticator.getCurrentTeacherId();
+
+        BalabalaTeacher teacher = teacherMapper.selectByPrimaryKey(teacherId);
+        BalabalaCampus campus = campusMapper.selectByPrimaryKey(teacher.getCampusId());
+
+        GetTeacherResponse response = new GetTeacherResponse();
+        response.setCampus(campus.getCampusName());
+        response.setId(teacher.getId());
+        response.setUsername(teacher.getUsername());
+        response.setFullName(teacher.getFullName());
+        response.setPhoneNumber(teacher.getPhoneNumber());
+        response.setAvatar(teacher.getAvatar());
+        response.setMajor(teacher.getMajor());
+        response.setComeFrom(teacher.getComeFrom());
+        return new ApiEntity(response);
+    }
+
+    @ApiOperation(value = "更新教师信息")
+    @PostMapping(value = "/teachers/update")
+    public ApiEntity updateTeacherInfo(@RequestBody UpdateTeacherInfoRequest request) {
+        if (!authenticator.authenticateForTeacher()) {
+            return new ApiEntity(ApiStatus.STATUS_401);
+        }
+
+        Long teacherId = authenticator.getCurrentTeacherId();
+
+        BalabalaTeacher teacherToBeUpdated = new BalabalaTeacher();
+        teacherToBeUpdated.setId(teacherId);
+        teacherToBeUpdated.setAvatar(request.getAvatar());
+        teacherToBeUpdated.setFullName(request.getFullName());
+        teacherToBeUpdated.setMajor(request.getMajor());
+        teacherToBeUpdated.setComeFrom(request.getComeFrom());
+        teacherMapper.updateByPrimaryKeySelective(teacherToBeUpdated);
+
+        return new ApiEntity();
     }
 
     @ApiOperation(value = "开始授课")
@@ -314,12 +359,92 @@ public class TeacherController {
         }
 
         Long teacherId = authenticator.getCurrentTeacherId();
+
         BalabalaClass aClass = new BalabalaClass();
         aClass.setCourseId(request.getCourseId());
         aClass.setClassName(request.getClassName());
         aClass.setTeacherId(teacherId);
         aClass.setStatus(BalabalaClassStatus.IN_REVIEW);
         classMapper.insertSelective(aClass);
+        return new ApiEntity();
+    }
+
+    @ApiOperation(value = "搜索校区学员")
+    @GetMapping(value = "/members/search")
+    public ApiEntity searchMembers(
+            @RequestParam String number,
+            @RequestParam String nickname) {
+        if (!authenticator.authenticateForTeacher()) {
+            return new ApiEntity(ApiStatus.STATUS_401);
+        }
+
+        Long teacherId = authenticator.getCurrentTeacherId();
+        BalabalaTeacher teacher = teacherMapper.selectByPrimaryKey(teacherId);
+        List<SearchMemberDto> response = Lists.newArrayList();
+
+        if (StringUtils.isNotBlank(number)) {
+            BalabalaMemberPassportExample passportExample = new BalabalaMemberPassportExample();
+            passportExample.createCriteria()
+                    .andProviderEqualTo(BalabalaMemberPassportProvider.PHONE.name())
+                    .andProviderIdEqualTo(number)
+                    .andDeletedEqualTo(Boolean.FALSE);
+            List<BalabalaMemberPassport> passports = passportMapper.selectByExample(passportExample);
+
+            if (CollectionUtils.isNotEmpty(passports)) {
+                BalabalaMember member = memberMapper.selectByPrimaryKey(passports.get(0).getMemberId());
+                SearchMemberDto dto = new SearchMemberDto();
+                dto.setId(member.getId());
+                dto.setNickname(member.getNickname());
+                dto.setAvatar(member.getAvatar());
+                dto.setPhoneNumber(passports.get(0).getProviderId());
+                response.add(dto);
+            }
+        } else if (StringUtils.isNotBlank(nickname)) {
+            BalabalaMemberExample memberExample = new BalabalaMemberExample();
+            memberExample.createCriteria()
+                    .andCampusIdEqualTo(teacher.getCampusId())
+                    .andNicknameLike(nickname)
+                    .andDeletedEqualTo(Boolean.FALSE);
+            List<BalabalaMember> members = memberMapper.selectByExample(memberExample);
+
+            for (BalabalaMember member : members) {
+                SearchMemberDto dto = new SearchMemberDto();
+                dto.setId(member.getId());
+                dto.setNickname(member.getNickname());
+                dto.setAvatar(member.getAvatar());
+
+                BalabalaMemberPassportExample passportExample = new BalabalaMemberPassportExample();
+                passportExample.createCriteria()
+                        .andMemberIdEqualTo(member.getId())
+                        .andProviderEqualTo(BalabalaMemberPassportProvider.PHONE.name())
+                        .andDeletedEqualTo(Boolean.FALSE);
+                List<BalabalaMemberPassport> passports = passportMapper.selectByExample(passportExample);
+
+                if (CollectionUtils.isNotEmpty(passports)) {
+                    dto.setPhoneNumber(passports.get(0).getProviderId());
+                }
+
+                response.add(dto);
+            }
+        }
+
+        return new ApiEntity(response);
+    }
+
+    @ApiOperation(value = "发表评语")
+    @GetMapping(value = "/members/{id}/comments")
+    public ApiEntity makeComment(@RequestBody MakeCommentRequest request) {
+        if (!authenticator.authenticateForTeacher()) {
+            return new ApiEntity(ApiStatus.STATUS_401);
+        }
+
+        Long teacherId = authenticator.getCurrentTeacherId();
+
+        BalabalaMemberComment commentToBeCreated = new BalabalaMemberComment();
+        commentToBeCreated.setMemberId(request.getMemberId());
+        commentToBeCreated.setTeacherId(teacherId);
+        commentToBeCreated.setContent(request.getContent());
+        commentMapper.insertSelective(commentToBeCreated);
         return new ApiEntity();
     }
 

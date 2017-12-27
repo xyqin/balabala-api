@@ -19,8 +19,10 @@
         <mapper resource="com/balabala/mapper/BalabalaMemberMapper.xml"/>
         <mapper resource="com/balabala/mapper/BalabalaMemberLessonMapper.xml"/>
         <mapper resource="com/balabala/mapper/BalabalaMemberPassportMapper.xml"/>
-        <mapper resource="com/balabala/mapper/BalabalaMemberShippingAddressMapper.xml"/>
         <mapper resource="com/balabala/mapper/BalabalaRegionMapper.xml"/>
         <mapper resource="com/balabala/mapper/BalabalaTeacherMapper.xml"/>
+        <mapper resource="com/balabala/mapper/BalabalaTextbookCategoryMapper.xml"/>
+        <mapper resource="com/balabala/mapper/BalabalaTextbookHomeworkMapper.xml"/>
+        <mapper resource="com/balabala/mapper/BalabalaTextbookMapper.xml"/>
     </mappers>
 </configuration>

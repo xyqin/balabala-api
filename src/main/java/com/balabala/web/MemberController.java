@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.*;
 import java.io.IOException;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Created by xyqin on 2017/4/1.
@@ -115,6 +116,12 @@ public class MemberController {
 
         if (CollectionUtils.isEmpty(passports)) {
             return new ApiEntity(ApiStatus.STATUS_400.getCode(), "手机号尚未注册");
+        }
+
+        BalabalaMemberPassport passport = passports.get(0);
+
+        if (!Objects.equals(DigestUtils.md5Hex(request.getPassword()), passport.getPassword())) {
+            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "密码错误");
         }
 
         BalabalaMember member = memberMapper.selectByPrimaryKey(passports.get(0).getMemberId());
