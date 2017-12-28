@@ -44,6 +44,7 @@ public class SwaggerConfig {
                 PathSelectors.regex("/regions.*"),
                 PathSelectors.regex("/storage.*"),
                 PathSelectors.regex("/teachers.*"),
+                PathSelectors.regex("/textbooks.*"),
                 PathSelectors.regex("/verifications.*")
         );
     }
