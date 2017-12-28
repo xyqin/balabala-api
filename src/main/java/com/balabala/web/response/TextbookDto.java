@@ -3,16 +3,16 @@ package com.balabala.web.response;
 import lombok.Data;
 
 @Data
-public class LessonDto {
+public class TextbookDto {
 
     private Long id;
 
     private String name;
 
-    private int duration;
+    private String question;
 
-    private String thumbnail;
+    private String correct;
 
-    private boolean prepared;
+    private String image;
 
 }

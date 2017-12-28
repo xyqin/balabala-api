@@ -12,6 +12,10 @@ public class ClassDto {
 
     private String name;
 
+    private String courseName;
+
     private List<ClassMemberDto> members = Lists.newArrayList();
+
+    private List<LessonDto> lessons = Lists.newArrayList();
 
 }

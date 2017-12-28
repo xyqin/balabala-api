@@ -1,88 +1,88 @@
 package com.balabala.repository;
 
-import com.balabala.domain.BalabalaTextbook;
-import com.balabala.repository.example.BalabalaTextbookExample;
+import com.balabala.domain.BalabalaTeacherHomework;
+import com.balabala.repository.example.BalabalaTeacherHomeworkExample;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 
 @Mapper
-public interface BalabalaTextbookMapper {
+public interface BalabalaTeacherHomeworkMapper {
     /**
      *  RudderFramework框架生成代码，请不要直接修改..
-     *  balabala_textbook
+     *  balabala_teacher_homework
      * @generated 2017年12月28日 01:55:47
      */
-    long countByExample(BalabalaTextbookExample example);
+    long countByExample(BalabalaTeacherHomeworkExample example);
 
     /**
      *  RudderFramework框架生成代码，请不要直接修改..
-     *  balabala_textbook
+     *  balabala_teacher_homework
      * @generated 2017年12月28日 01:55:47
      */
-    int deleteByExample(BalabalaTextbookExample example);
+    int deleteByExample(BalabalaTeacherHomeworkExample example);
 
     /**
      *  RudderFramework框架生成代码，请不要直接修改..
-     *  balabala_textbook
+     *  balabala_teacher_homework
      * @generated 2017年12月28日 01:55:47
      */
     int deleteByPrimaryKey(Long id);
 
     /**
      *  RudderFramework框架生成代码，请不要直接修改..
-     *  balabala_textbook
+     *  balabala_teacher_homework
      * @generated 2017年12月28日 01:55:47
      */
-    int insert(BalabalaTextbook record);
+    int insert(BalabalaTeacherHomework record);
 
     /**
      *  RudderFramework框架生成代码，请不要直接修改..
-     *  balabala_textbook
+     *  balabala_teacher_homework
      * @generated 2017年12月28日 01:55:47
      */
-    int insertSelective(BalabalaTextbook record);
+    int insertSelective(BalabalaTeacherHomework record);
 
     /**
      *  RudderFramework框架生成代码，请不要直接修改..
-     *  balabala_textbook
+     *  balabala_teacher_homework
      * @generated 2017年12月28日 01:55:47
      */
-    List<BalabalaTextbook> selectByExample(BalabalaTextbookExample example);
+    List<BalabalaTeacherHomework> selectByExample(BalabalaTeacherHomeworkExample example);
 
     /**
      *  RudderFramework框架生成代码，请不要直接修改..
-     *  balabala_textbook
+     *  balabala_teacher_homework
      * @generated 2017年12月28日 01:55:47
      */
-    BalabalaTextbook selectByPrimaryKey(Long id);
+    BalabalaTeacherHomework selectByPrimaryKey(Long id);
 
     /**
      *  RudderFramework框架生成代码，请不要直接修改..
-     *  balabala_textbook
+     *  balabala_teacher_homework
      * @generated 2017年12月28日 01:55:47
      */
-    int updateByExampleSelective(@Param("record") BalabalaTextbook record, @Param("example") BalabalaTextbookExample example);
+    int updateByExampleSelective(@Param("record") BalabalaTeacherHomework record, @Param("example") BalabalaTeacherHomeworkExample example);
 
     /**
      *  RudderFramework框架生成代码，请不要直接修改..
-     *  balabala_textbook
+     *  balabala_teacher_homework
      * @generated 2017年12月28日 01:55:47
      */
-    int updateByExample(@Param("record") BalabalaTextbook record, @Param("example") BalabalaTextbookExample example);
+    int updateByExample(@Param("record") BalabalaTeacherHomework record, @Param("example") BalabalaTeacherHomeworkExample example);
 
     /**
      *  RudderFramework框架生成代码，请不要直接修改..
-     *  balabala_textbook
+     *  balabala_teacher_homework
      * @generated 2017年12月28日 01:55:47
      */
-    int updateByPrimaryKeySelective(BalabalaTextbook record);
+    int updateByPrimaryKeySelective(BalabalaTeacherHomework record);
 
     /**
      *  RudderFramework框架生成代码，请不要直接修改..
-     *  balabala_textbook
+     *  balabala_teacher_homework
      * @generated 2017年12月28日 01:55:47
      */
-    int updateByPrimaryKey(BalabalaTextbook record);
+    int updateByPrimaryKey(BalabalaTeacherHomework record);
 }

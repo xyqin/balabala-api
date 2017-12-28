@@ -13,4 +13,6 @@ public class BalabalaTextbookCategory extends AbstractEntity<Long> {
 
     private String path;
 
+    private Integer position;
+
 }

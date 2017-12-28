@@ -4,28 +4,28 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-public class BalabalaTextbookHomeworkExample {
+public class BalabalaTeacherHomeworkExample {
     /**
      * RudderFramework框架生成代码，请不要直接修改.
      * 
-     * This field corresponds to the database table balabala_textbook_homework
-     * @generated 2017年12月28日 12:00:27
+     * This field corresponds to the database table balabala_teacher_homework
+     * @generated 2017年12月28日 01:55:47
      */
     protected String orderByClause;
 
     /**
      * RudderFramework框架生成代码，请不要直接修改.
      * 
-     * This field corresponds to the database table balabala_textbook_homework
-     * @generated 2017年12月28日 12:00:27
+     * This field corresponds to the database table balabala_teacher_homework
+     * @generated 2017年12月28日 01:55:47
      */
     protected boolean distinct;
 
     /**
      * RudderFramework框架生成代码，请不要直接修改.
      * 
-     * This field corresponds to the database table balabala_textbook_homework
-     * @generated 2017年12月28日 12:00:27
+     * This field corresponds to the database table balabala_teacher_homework
+     * @generated 2017年12月28日 01:55:47
      */
     protected List<Criteria> oredCriteria;
 
@@ -35,17 +35,17 @@ public class BalabalaTextbookHomeworkExample {
 
     /**
      *  RudderFramework框架生成代码，请不要直接修改..
-     *  balabala_textbook_homework
-     * @generated 2017年12月28日 12:00:27
+     *  balabala_teacher_homework
+     * @generated 2017年12月28日 01:55:47
      */
-    public BalabalaTextbookHomeworkExample() {
+    public BalabalaTeacherHomeworkExample() {
         oredCriteria = new ArrayList<Criteria>();
     }
 
     /**
      *  RudderFramework框架生成代码，请不要直接修改..
-     *  balabala_textbook_homework
-     * @generated 2017年12月28日 12:00:27
+     *  balabala_teacher_homework
+     * @generated 2017年12月28日 01:55:47
      */
     public void setOrderByClause(String orderByClause) {
         this.orderByClause = orderByClause;
@@ -53,8 +53,8 @@ public class BalabalaTextbookHomeworkExample {
 
     /**
      *  RudderFramework框架生成代码，请不要直接修改..
-     *  balabala_textbook_homework
-     * @generated 2017年12月28日 12:00:27
+     *  balabala_teacher_homework
+     * @generated 2017年12月28日 01:55:47
      */
     public String getOrderByClause() {
         return orderByClause;
@@ -62,8 +62,8 @@ public class BalabalaTextbookHomeworkExample {
 
     /**
      *  RudderFramework框架生成代码，请不要直接修改..
-     *  balabala_textbook_homework
-     * @generated 2017年12月28日 12:00:27
+     *  balabala_teacher_homework
+     * @generated 2017年12月28日 01:55:47
      */
     public void setDistinct(boolean distinct) {
         this.distinct = distinct;
@@ -71,8 +71,8 @@ public class BalabalaTextbookHomeworkExample {
 
     /**
      *  RudderFramework框架生成代码，请不要直接修改..
-     *  balabala_textbook_homework
-     * @generated 2017年12月28日 12:00:27
+     *  balabala_teacher_homework
+     * @generated 2017年12月28日 01:55:47
      */
     public boolean isDistinct() {
         return distinct;
@@ -80,8 +80,8 @@ public class BalabalaTextbookHomeworkExample {
 
     /**
      *  RudderFramework框架生成代码，请不要直接修改..
-     *  balabala_textbook_homework
-     * @generated 2017年12月28日 12:00:27
+     *  balabala_teacher_homework
+     * @generated 2017年12月28日 01:55:47
      */
     public List<Criteria> getOredCriteria() {
         return oredCriteria;
@@ -89,8 +89,8 @@ public class BalabalaTextbookHomeworkExample {
 
     /**
      *  RudderFramework框架生成代码，请不要直接修改..
-     *  balabala_textbook_homework
-     * @generated 2017年12月28日 12:00:27
+     *  balabala_teacher_homework
+     * @generated 2017年12月28日 01:55:47
      */
     public void or(Criteria criteria) {
         oredCriteria.add(criteria);
@@ -98,8 +98,8 @@ public class BalabalaTextbookHomeworkExample {
 
     /**
      *  RudderFramework框架生成代码，请不要直接修改..
-     *  balabala_textbook_homework
-     * @generated 2017年12月28日 12:00:27
+     *  balabala_teacher_homework
+     * @generated 2017年12月28日 01:55:47
      */
     public Criteria or() {
         Criteria criteria = createCriteriaInternal();
@@ -109,8 +109,8 @@ public class BalabalaTextbookHomeworkExample {
 
     /**
      *  RudderFramework框架生成代码，请不要直接修改..
-     *  balabala_textbook_homework
-     * @generated 2017年12月28日 12:00:27
+     *  balabala_teacher_homework
+     * @generated 2017年12月28日 01:55:47
      */
     public Criteria createCriteria() {
         Criteria criteria = createCriteriaInternal();
@@ -122,8 +122,8 @@ public class BalabalaTextbookHomeworkExample {
 
     /**
      *  RudderFramework框架生成代码，请不要直接修改..
-     *  balabala_textbook_homework
-     * @generated 2017年12月28日 12:00:27
+     *  balabala_teacher_homework
+     * @generated 2017年12月28日 01:55:47
      */
     protected Criteria createCriteriaInternal() {
         Criteria criteria = new Criteria();
@@ -132,8 +132,8 @@ public class BalabalaTextbookHomeworkExample {
 
     /**
      *  RudderFramework框架生成代码，请不要直接修改..
-     *  balabala_textbook_homework
-     * @generated 2017年12月28日 12:00:27
+     *  balabala_teacher_homework
+     * @generated 2017年12月28日 01:55:47
      */
     public void clear() {
         oredCriteria.clear();
@@ -159,8 +159,8 @@ public class BalabalaTextbookHomeworkExample {
 
     /**
      * This class was generated by MyBatis Generator.
-     * This class corresponds to the database table balabala_textbook_homework
-     * @generated 2017年12月28日 12:00:27
+     * This class corresponds to the database table balabala_teacher_homework
+     * @generated 2017年12月28日 01:55:47
      */
     protected abstract static class GeneratedCriteria {
         protected List<Criterion> criteria;
@@ -263,63 +263,63 @@ public class BalabalaTextbookHomeworkExample {
             return (Criteria) this;
         }
 
-        public Criteria andTextbookIdIsNull() {
-            addCriterion("textbook_id is null");
+        public Criteria andTeacherIdIsNull() {
+            addCriterion("teacher_id is null");
             return (Criteria) this;
         }
 
-        public Criteria andTextbookIdIsNotNull() {
-            addCriterion("textbook_id is not null");
+        public Criteria andTeacherIdIsNotNull() {
+            addCriterion("teacher_id is not null");
             return (Criteria) this;
         }
 
-        public Criteria andTextbookIdEqualTo(Long value) {
-            addCriterion("textbook_id =", value, "textbookId");
+        public Criteria andTeacherIdEqualTo(Long value) {
+            addCriterion("teacher_id =", value, "teacherId");
             return (Criteria) this;
         }
 
-        public Criteria andTextbookIdNotEqualTo(Long value) {
-            addCriterion("textbook_id <>", value, "textbookId");
+        public Criteria andTeacherIdNotEqualTo(Long value) {
+            addCriterion("teacher_id <>", value, "teacherId");
             return (Criteria) this;
         }
 
-        public Criteria andTextbookIdGreaterThan(Long value) {
-            addCriterion("textbook_id >", value, "textbookId");
+        public Criteria andTeacherIdGreaterThan(Long value) {
+            addCriterion("teacher_id >", value, "teacherId");
             return (Criteria) this;
         }
 
-        public Criteria andTextbookIdGreaterThanOrEqualTo(Long value) {
-            addCriterion("textbook_id >=", value, "textbookId");
+        public Criteria andTeacherIdGreaterThanOrEqualTo(Long value) {
+            addCriterion("teacher_id >=", value, "teacherId");
             return (Criteria) this;
         }
 
-        public Criteria andTextbookIdLessThan(Long value) {
-            addCriterion("textbook_id <", value, "textbookId");
+        public Criteria andTeacherIdLessThan(Long value) {
+            addCriterion("teacher_id <", value, "teacherId");
             return (Criteria) this;
         }
 
-        public Criteria andTextbookIdLessThanOrEqualTo(Long value) {
-            addCriterion("textbook_id <=", value, "textbookId");
+        public Criteria andTeacherIdLessThanOrEqualTo(Long value) {
+            addCriterion("teacher_id <=", value, "teacherId");
             return (Criteria) this;
         }
 
-        public Criteria andTextbookIdIn(List<Long> values) {
-            addCriterion("textbook_id in", values, "textbookId");
+        public Criteria andTeacherIdIn(List<Long> values) {
+            addCriterion("teacher_id in", values, "teacherId");
             return (Criteria) this;
         }
 
-        public Criteria andTextbookIdNotIn(List<Long> values) {
-            addCriterion("textbook_id not in", values, "textbookId");
+        public Criteria andTeacherIdNotIn(List<Long> values) {
+            addCriterion("teacher_id not in", values, "teacherId");
             return (Criteria) this;
         }
 
-        public Criteria andTextbookIdBetween(Long value1, Long value2) {
-            addCriterion("textbook_id between", value1, value2, "textbookId");
+        public Criteria andTeacherIdBetween(Long value1, Long value2) {
+            addCriterion("teacher_id between", value1, value2, "teacherId");
             return (Criteria) this;
         }
 
-        public Criteria andTextbookIdNotBetween(Long value1, Long value2) {
-            addCriterion("textbook_id not between", value1, value2, "textbookId");
+        public Criteria andTeacherIdNotBetween(Long value1, Long value2) {
+            addCriterion("teacher_id not between", value1, value2, "teacherId");
             return (Criteria) this;
         }
 
@@ -393,283 +393,63 @@ public class BalabalaTextbookHomeworkExample {
             return (Criteria) this;
         }
 
-        public Criteria andTypeIsNull() {
-            addCriterion("type is null");
+        public Criteria andClosingAtIsNull() {
+            addCriterion("closing_at is null");
             return (Criteria) this;
         }
 
-        public Criteria andTypeIsNotNull() {
-            addCriterion("type is not null");
+        public Criteria andClosingAtIsNotNull() {
+            addCriterion("closing_at is not null");
             return (Criteria) this;
         }
 
-        public Criteria andTypeEqualTo(String value) {
-            addCriterion("type =", value, "type");
+        public Criteria andClosingAtEqualTo(Date value) {
+            addCriterion("closing_at =", value, "closingAt");
             return (Criteria) this;
         }
 
-        public Criteria andTypeNotEqualTo(String value) {
-            addCriterion("type <>", value, "type");
+        public Criteria andClosingAtNotEqualTo(Date value) {
+            addCriterion("closing_at <>", value, "closingAt");
             return (Criteria) this;
         }
 
-        public Criteria andTypeGreaterThan(String value) {
-            addCriterion("type >", value, "type");
+        public Criteria andClosingAtGreaterThan(Date value) {
+            addCriterion("closing_at >", value, "closingAt");
             return (Criteria) this;
         }
 
-        public Criteria andTypeGreaterThanOrEqualTo(String value) {
-            addCriterion("type >=", value, "type");
+        public Criteria andClosingAtGreaterThanOrEqualTo(Date value) {
+            addCriterion("closing_at >=", value, "closingAt");
             return (Criteria) this;
         }
 
-        public Criteria andTypeLessThan(String value) {
-            addCriterion("type <", value, "type");
+        public Criteria andClosingAtLessThan(Date value) {
+            addCriterion("closing_at <", value, "closingAt");
             return (Criteria) this;
         }
 
-        public Criteria andTypeLessThanOrEqualTo(String value) {
-            addCriterion("type <=", value, "type");
+        public Criteria andClosingAtLessThanOrEqualTo(Date value) {
+            addCriterion("closing_at <=", value, "closingAt");
             return (Criteria) this;
         }
 
-        public Criteria andTypeLike(String value) {
-            addCriterion("type like", value, "type");
+        public Criteria andClosingAtIn(List<Date> values) {
+            addCriterion("closing_at in", values, "closingAt");
             return (Criteria) this;
         }
 
-        public Criteria andTypeNotLike(String value) {
-            addCriterion("type not like", value, "type");
+        public Criteria andClosingAtNotIn(List<Date> values) {
+            addCriterion("closing_at not in", values, "closingAt");
             return (Criteria) this;
         }
 
-        public Criteria andTypeIn(List<String> values) {
-            addCriterion("type in", values, "type");
+        public Criteria andClosingAtBetween(Date value1, Date value2) {
+            addCriterion("closing_at between", value1, value2, "closingAt");
             return (Criteria) this;
         }
 
-        public Criteria andTypeNotIn(List<String> values) {
-            addCriterion("type not in", values, "type");
-            return (Criteria) this;
-        }
-
-        public Criteria andTypeBetween(String value1, String value2) {
-            addCriterion("type between", value1, value2, "type");
-            return (Criteria) this;
-        }
-
-        public Criteria andTypeNotBetween(String value1, String value2) {
-            addCriterion("type not between", value1, value2, "type");
-            return (Criteria) this;
-        }
-
-        public Criteria andQuestionIsNull() {
-            addCriterion("question is null");
-            return (Criteria) this;
-        }
-
-        public Criteria andQuestionIsNotNull() {
-            addCriterion("question is not null");
-            return (Criteria) this;
-        }
-
-        public Criteria andQuestionEqualTo(String value) {
-            addCriterion("question =", value, "question");
-            return (Criteria) this;
-        }
-
-        public Criteria andQuestionNotEqualTo(String value) {
-            addCriterion("question <>", value, "question");
-            return (Criteria) this;
-        }
-
-        public Criteria andQuestionGreaterThan(String value) {
-            addCriterion("question >", value, "question");
-            return (Criteria) this;
-        }
-
-        public Criteria andQuestionGreaterThanOrEqualTo(String value) {
-            addCriterion("question >=", value, "question");
-            return (Criteria) this;
-        }
-
-        public Criteria andQuestionLessThan(String value) {
-            addCriterion("question <", value, "question");
-            return (Criteria) this;
-        }
-
-        public Criteria andQuestionLessThanOrEqualTo(String value) {
-            addCriterion("question <=", value, "question");
-            return (Criteria) this;
-        }
-
-        public Criteria andQuestionLike(String value) {
-            addCriterion("question like", value, "question");
-            return (Criteria) this;
-        }
-
-        public Criteria andQuestionNotLike(String value) {
-            addCriterion("question not like", value, "question");
-            return (Criteria) this;
-        }
-
-        public Criteria andQuestionIn(List<String> values) {
-            addCriterion("question in", values, "question");
-            return (Criteria) this;
-        }
-
-        public Criteria andQuestionNotIn(List<String> values) {
-            addCriterion("question not in", values, "question");
-            return (Criteria) this;
-        }
-
-        public Criteria andQuestionBetween(String value1, String value2) {
-            addCriterion("question between", value1, value2, "question");
-            return (Criteria) this;
-        }
-
-        public Criteria andQuestionNotBetween(String value1, String value2) {
-            addCriterion("question not between", value1, value2, "question");
-            return (Criteria) this;
-        }
-
-        public Criteria andCorrectIsNull() {
-            addCriterion("correct is null");
-            return (Criteria) this;
-        }
-
-        public Criteria andCorrectIsNotNull() {
-            addCriterion("correct is not null");
-            return (Criteria) this;
-        }
-
-        public Criteria andCorrectEqualTo(String value) {
-            addCriterion("correct =", value, "correct");
-            return (Criteria) this;
-        }
-
-        public Criteria andCorrectNotEqualTo(String value) {
-            addCriterion("correct <>", value, "correct");
-            return (Criteria) this;
-        }
-
-        public Criteria andCorrectGreaterThan(String value) {
-            addCriterion("correct >", value, "correct");
-            return (Criteria) this;
-        }
-
-        public Criteria andCorrectGreaterThanOrEqualTo(String value) {
-            addCriterion("correct >=", value, "correct");
-            return (Criteria) this;
-        }
-
-        public Criteria andCorrectLessThan(String value) {
-            addCriterion("correct <", value, "correct");
-            return (Criteria) this;
-        }
-
-        public Criteria andCorrectLessThanOrEqualTo(String value) {
-            addCriterion("correct <=", value, "correct");
-            return (Criteria) this;
-        }
-
-        public Criteria andCorrectLike(String value) {
-            addCriterion("correct like", value, "correct");
-            return (Criteria) this;
-        }
-
-        public Criteria andCorrectNotLike(String value) {
-            addCriterion("correct not like", value, "correct");
-            return (Criteria) this;
-        }
-
-        public Criteria andCorrectIn(List<String> values) {
-            addCriterion("correct in", values, "correct");
-            return (Criteria) this;
-        }
-
-        public Criteria andCorrectNotIn(List<String> values) {
-            addCriterion("correct not in", values, "correct");
-            return (Criteria) this;
-        }
-
-        public Criteria andCorrectBetween(String value1, String value2) {
-            addCriterion("correct between", value1, value2, "correct");
-            return (Criteria) this;
-        }
-
-        public Criteria andCorrectNotBetween(String value1, String value2) {
-            addCriterion("correct not between", value1, value2, "correct");
-            return (Criteria) this;
-        }
-
-        public Criteria andImageIsNull() {
-            addCriterion("image is null");
-            return (Criteria) this;
-        }
-
-        public Criteria andImageIsNotNull() {
-            addCriterion("image is not null");
-            return (Criteria) this;
-        }
-
-        public Criteria andImageEqualTo(String value) {
-            addCriterion("image =", value, "image");
-            return (Criteria) this;
-        }
-
-        public Criteria andImageNotEqualTo(String value) {
-            addCriterion("image <>", value, "image");
-            return (Criteria) this;
-        }
-
-        public Criteria andImageGreaterThan(String value) {
-            addCriterion("image >", value, "image");
-            return (Criteria) this;
-        }
-
-        public Criteria andImageGreaterThanOrEqualTo(String value) {
-            addCriterion("image >=", value, "image");
-            return (Criteria) this;
-        }
-
-        public Criteria andImageLessThan(String value) {
-            addCriterion("image <", value, "image");
-            return (Criteria) this;
-        }
-
-        public Criteria andImageLessThanOrEqualTo(String value) {
-            addCriterion("image <=", value, "image");
-            return (Criteria) this;
-        }
-
-        public Criteria andImageLike(String value) {
-            addCriterion("image like", value, "image");
-            return (Criteria) this;
-        }
-
-        public Criteria andImageNotLike(String value) {
-            addCriterion("image not like", value, "image");
-            return (Criteria) this;
-        }
-
-        public Criteria andImageIn(List<String> values) {
-            addCriterion("image in", values, "image");
-            return (Criteria) this;
-        }
-
-        public Criteria andImageNotIn(List<String> values) {
-            addCriterion("image not in", values, "image");
-            return (Criteria) this;
-        }
-
-        public Criteria andImageBetween(String value1, String value2) {
-            addCriterion("image between", value1, value2, "image");
-            return (Criteria) this;
-        }
-
-        public Criteria andImageNotBetween(String value1, String value2) {
-            addCriterion("image not between", value1, value2, "image");
+        public Criteria andClosingAtNotBetween(Date value1, Date value2) {
+            addCriterion("closing_at not between", value1, value2, "closingAt");
             return (Criteria) this;
         }
 
@@ -976,8 +756,8 @@ public class BalabalaTextbookHomeworkExample {
 
     /**
      * RudderFramework Util 生成.
-     * 根据数据库表 balabala_textbook_homework
-     * @generated do_not_delete_during_merge 2017年12月28日 12:00:27
+     * 根据数据库表 balabala_teacher_homework
+     * @generated do_not_delete_during_merge 2017年12月28日 01:55:47
      */
     public static class Criteria extends GeneratedCriteria {
 
@@ -988,8 +768,8 @@ public class BalabalaTextbookHomeworkExample {
 
     /**
      * This class was generated by MyBatis Generator.
-     * This class corresponds to the database table balabala_textbook_homework
-     * @generated 2017年12月28日 12:00:27
+     * This class corresponds to the database table balabala_teacher_homework
+     * @generated 2017年12月28日 01:55:47
      */
     public static class Criterion {
         private String condition;

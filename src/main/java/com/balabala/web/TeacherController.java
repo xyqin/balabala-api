@@ -39,6 +39,12 @@ public class TeacherController {
     private BalabalaTeacherMapper teacherMapper;
 
     @Autowired
+    private BalabalaTeacherHomeworkMapper teacherHomeworkMapper;
+
+    @Autowired
+    private BalabalaTeacherHomeworkItemMapper teacherHomeworkItemMapper;
+
+    @Autowired
     private BalabalaMemberMapper memberMapper;
 
     @Autowired
@@ -58,6 +64,18 @@ public class TeacherController {
 
     @Autowired
     private BalabalaMemberCommentMapper commentMapper;
+
+    @Autowired
+    private BalabalaMemberHomeworkMapper memberHomeworkMapper;
+
+    @Autowired
+    private BalabalaMemberHomeworkItemMapper memberHomeworkItemMapper;
+
+    @Autowired
+    private BalabalaCourseMapper courseMapper;
+
+    @Autowired
+    private BalabalaTextbookMapper textbookMapper;
 
     @Autowired
     private NeteaseClient neteaseClient;
@@ -98,7 +116,7 @@ public class TeacherController {
 
     @ApiOperation(value = "手机号登录")
     @PostMapping(value = "/teachers/signin")
-    public ApiEntity signin(@Validated @RequestBody SigninTeacherRequest request) {
+    public ApiEntity<SigninTeacherResponse> signin(@Validated @RequestBody SigninTeacherRequest request) {
         BalabalaTeacherExample example = new BalabalaTeacherExample();
         example.or().andPhoneNumberEqualTo(request.getLoginName()).andDeletedEqualTo(Boolean.FALSE);
         example.or().andUsernameEqualTo(request.getLoginName()).andDeletedEqualTo(Boolean.FALSE);
@@ -130,7 +148,7 @@ public class TeacherController {
 
     @ApiOperation(value = "获取教师信息")
     @GetMapping(value = "/teachers")
-    public ApiEntity getTeacherInfo() {
+    public ApiEntity<GetTeacherResponse> getTeacherInfo() {
         if (!authenticator.authenticateForTeacher()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
@@ -172,9 +190,135 @@ public class TeacherController {
         return new ApiEntity();
     }
 
+    @ApiOperation(value = "获取备课列表")
+    @GetMapping(value = "/teachers/lessons")
+    public ApiEntity<List<ClassDto>> getLessons() {
+        if (!authenticator.authenticateForTeacher()) {
+            return new ApiEntity(ApiStatus.STATUS_401);
+        }
+
+        Long teacherId = authenticator.getCurrentTeacherId();
+
+        BalabalaClassExample example = new BalabalaClassExample();
+        example.createCriteria()
+                .andTeacherIdEqualTo(teacherId)
+                .andStatusEqualTo(BalabalaClassStatus.ONGOING.name())
+                .andDeletedEqualTo(Boolean.FALSE);
+        example.setOrderByClause("created_at DESC");
+        List<BalabalaClass> classes = classMapper.selectByExample(example);
+        List<ClassDto> response = Lists.newArrayList();
+
+        for (BalabalaClass aClass : classes) {
+            BalabalaCourse course = courseMapper.selectByPrimaryKey(aClass.getCourseId());
+
+            ClassDto dto = new ClassDto();
+            dto.setId(aClass.getId());
+            dto.setName(aClass.getClassName());
+            dto.setCourseName(course.getCourseName());
+
+            BalabalaClassLessonExample lessonExample = new BalabalaClassLessonExample();
+            lessonExample.createCriteria()
+                    .andClassIdEqualTo(teacherId)
+                    .andDeletedEqualTo(Boolean.FALSE);
+            lessonExample.setOrderByClause("start_at");
+            List<BalabalaClassLesson> lessons = lessonMapper.selectByExample(lessonExample);
+
+            for (BalabalaClassLesson lesson : lessons) {
+                LessonDto lDto = new LessonDto();
+                lDto.setId(lesson.getId());
+                lDto.setName(lesson.getLessonName());
+                lDto.setPrepared(lesson.getPrepared());
+                dto.getLessons().add(lDto);
+            }
+
+            response.add(dto);
+        }
+
+        return new ApiEntity(response);
+    }
+
+    @ApiOperation(value = "获取课时的题目列表")
+    @GetMapping(value = "/teachers/lessons/{id}/textbooks")
+    public ApiEntity<GetTextbooksResponse> getLessonTextbooks(@RequestParam Long id) {
+        Long teacherId = authenticator.getCurrentTeacherId();
+        BalabalaClassLessonExample example = new BalabalaClassLessonExample();
+        example.createCriteria()
+                .andIdEqualTo(id)
+                .andTeacherIdEqualTo(teacherId)
+                .andDeletedEqualTo(Boolean.FALSE);
+        List<BalabalaClassLesson> lessons = lessonMapper.selectByExample(example);
+
+        if (CollectionUtils.isEmpty(lessons)) {
+            return new ApiEntity(ApiStatus.STATUS_401.getCode(), "找不到课程或您无权访问");
+        }
+
+        BalabalaClassLesson lesson = lessons.get(0);
+        BalabalaTextbookExample textbookExample = new BalabalaTextbookExample();
+        textbookExample.createCriteria()
+                .andCategoryIdEqualTo(lesson.getCategoryId())
+                .andDeletedEqualTo(Boolean.FALSE);
+        List<BalabalaTextbook> textbooks = textbookMapper.selectByExample(textbookExample);
+        GetTextbooksResponse response = new GetTextbooksResponse();
+
+        for (BalabalaTextbook textbook : textbooks) {
+            TextbookDto dto = new TextbookDto();
+            dto.setId(textbook.getId());
+            dto.setName(textbook.getTextbookName());
+            dto.setQuestion(textbook.getQuestion());
+            dto.setCorrect(textbook.getCorrect());
+            dto.setImage(textbook.getImage());
+
+            if (TextbookType.CHOICE.equals(textbook.getType())) {
+                response.getChoices().add(dto);
+            } else if (TextbookType.FILLIN.equals(textbook.getType())) {
+                response.getFillins().add(dto);
+            } else if (TextbookType.LISTEN.equals(textbook.getType())) {
+                response.getListens().add(dto);
+            } else if (TextbookType.SENTENCE.equals(textbook.getType())) {
+                response.getSentences().add(dto);
+            } else if (TextbookType.CONNECT.equals(textbook.getType())) {
+                response.getConnects().add(dto);
+            } else if (TextbookType.WORD.equals(textbook.getType())) {
+                response.getWords().add(dto);
+            } else if (TextbookType.PICTURE.equals(textbook.getType())) {
+                response.getPictures().add(dto);
+            } else if (TextbookType.ARTICLE.equals(textbook.getType())) {
+                response.getArticle().add(dto);
+            }
+        }
+
+        return new ApiEntity(response);
+    }
+
+    @ApiOperation(value = "标记已备课")
+    @GetMapping(value = "/teachers/lessons/{id}/prepared")
+    public ApiEntity prepare(@PathVariable Long id) {
+        if (!authenticator.authenticateForTeacher()) {
+            return new ApiEntity(ApiStatus.STATUS_401);
+        }
+
+        Long teacherId = authenticator.getCurrentTeacherId();
+        BalabalaClassLessonExample example = new BalabalaClassLessonExample();
+        example.createCriteria()
+                .andIdEqualTo(id)
+                .andTeacherIdEqualTo(teacherId)
+                .andDeletedEqualTo(Boolean.FALSE);
+        List<BalabalaClassLesson> lessons = lessonMapper.selectByExample(example);
+
+        if (CollectionUtils.isEmpty(lessons)) {
+            return new ApiEntity(ApiStatus.STATUS_401.getCode(), "找不到课程或您无权访问");
+        }
+
+        BalabalaClassLesson lessonToBeUpdated = new BalabalaClassLesson();
+        lessonToBeUpdated.setId(lessons.get(0).getId());
+        lessonToBeUpdated.setPrepared(Boolean.TRUE);
+        lessonMapper.updateByPrimaryKeySelective(lessonToBeUpdated);
+        return new ApiEntity();
+    }
+
     @ApiOperation(value = "开始授课")
     @GetMapping(value = "/teachers/lessons/current")
-    public ApiEntity newLesson() {
+    public ApiEntity<NewLessonResponse> newLesson() {
         if (!authenticator.authenticateForTeacher()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
@@ -249,37 +393,9 @@ public class TeacherController {
         return new ApiEntity(response);
     }
 
-    @ApiOperation(value = "获取备课列表")
-    @GetMapping(value = "/teachers/lessons")
-    public ApiEntity getLessons() {
-        if (!authenticator.authenticateForTeacher()) {
-            return new ApiEntity(ApiStatus.STATUS_401);
-        }
-
-        Long teacherId = authenticator.getCurrentTeacherId();
-
-        BalabalaClassLessonExample example = new BalabalaClassLessonExample();
-        example.createCriteria()
-                .andTeacherIdEqualTo(teacherId)
-                .andStartAtGreaterThan(new Date())
-                .andDeletedEqualTo(Boolean.FALSE);
-        example.setOrderByClause("start_at");
-        List<BalabalaClassLesson> lessons = lessonMapper.selectByExample(example);
-        List<LessonDto> response = Lists.newArrayList();
-
-        for (BalabalaClassLesson lesson : lessons) {
-            LessonDto dto = new LessonDto();
-            dto.setId(lesson.getId());
-            dto.setName(lesson.getLessonName());
-            response.add(dto);
-        }
-
-        return new ApiEntity(response);
-    }
-
     @ApiOperation(value = "获取授课历史")
     @GetMapping(value = "/teachers/lessons/history")
-    public ApiEntity getLessonHistory(@RequestParam int page, @RequestParam int size) {
+    public ApiEntity<List<LessonDto>> getLessonHistory(@RequestParam int page, @RequestParam int size) {
         if (!authenticator.authenticateForTeacher()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
@@ -308,7 +424,7 @@ public class TeacherController {
 
     @ApiOperation(value = "获取班级列表")
     @GetMapping(value = "/teachers/classes")
-    public ApiEntity getClasses() {
+    public ApiEntity<List<ClassDto>> getClasses() {
         if (!authenticator.authenticateForTeacher()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
@@ -353,7 +469,7 @@ public class TeacherController {
 
     @ApiOperation(value = "申请开班")
     @PostMapping(value = "/teachers/classes")
-    public ApiEntity getClasses(@RequestBody ApplyClassRequest request) {
+    public ApiEntity newClass(@RequestBody ApplyClassRequest request) {
         if (!authenticator.authenticateForTeacher()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
@@ -381,7 +497,7 @@ public class TeacherController {
 
     @ApiOperation(value = "搜索校区学员")
     @GetMapping(value = "/members/search")
-    public ApiEntity searchMembers(
+    public ApiEntity<List<SearchMemberDto>> searchMembers(
             @RequestParam String number,
             @RequestParam String nickname) {
         if (!authenticator.authenticateForTeacher()) {
@@ -455,6 +571,51 @@ public class TeacherController {
         commentToBeCreated.setTeacherId(teacherId);
         commentToBeCreated.setContent(request.getContent());
         commentMapper.insertSelective(commentToBeCreated);
+        return new ApiEntity();
+    }
+
+    @ApiOperation(value = "发布作业")
+    @PostMapping(value = "/teachers/homeworks")
+    public ApiEntity setHomeworks(@RequestBody SetHomeworksRequest request) {
+        if (!authenticator.authenticateForTeacher()) {
+            return new ApiEntity(ApiStatus.STATUS_401);
+        }
+
+        Long teacherId = authenticator.getCurrentTeacherId();
+
+        // 创建教师作业数据
+        BalabalaTeacherHomework teacherHomework = new BalabalaTeacherHomework();
+        teacherHomework.setTeacherId(teacherId);
+        teacherHomework.setHomeworkName(request.getName());
+        teacherHomework.setClosingAt(request.getClosingAt());
+        teacherHomeworkMapper.insertSelective(teacherHomework);
+
+        if (CollectionUtils.isNotEmpty(request.getTextbookIds())) {
+            for (Long textbookId : request.getTextbookIds()) {
+                BalabalaTeacherHomeworkItem teacherHomeworkItem = new BalabalaTeacherHomeworkItem();
+                teacherHomeworkItem.setHomeworkId(teacherHomework.getId());
+                teacherHomeworkItem.setTeacherId(teacherId);
+                teacherHomeworkItem.setTextbookId(textbookId);
+                teacherHomeworkItemMapper.insertSelective(teacherHomeworkItem);
+            }
+        }
+
+        // 创建会员作业数据
+        BalabalaClassMemberExample classMemberExample = new BalabalaClassMemberExample();
+        classMemberExample.createCriteria()
+                .andClassIdEqualTo(request.getClassId())
+                .andDeletedEqualTo(Boolean.FALSE);
+        List<BalabalaClassMember> classMembers = classMemberMapper.selectByExample(classMemberExample);
+
+        for (BalabalaClassMember cMember : classMembers) {
+            BalabalaMemberHomework homework = new BalabalaMemberHomework();
+            homework.setMemberId(cMember.getMemberId());
+            homework.setTeacherId(teacherId);
+            homework.setHomeworkName(request.getName());
+            homework.setClosingAt(request.getClosingAt());
+            memberHomeworkMapper.insertSelective(homework);
+        }
+
         return new ApiEntity();
     }
 

@@ -3,20 +3,20 @@ package com.balabala.web;
 import lombok.Data;
 
 @Data
-public class ApiEntity {
+public class ApiEntity<T> {
 
     private int status;
 
     private String message;
 
-    private Object data;
+    private T data;
 
     public ApiEntity() {
         this.status = ApiStatus.STATUS_200.getCode();
         this.message = ApiStatus.STATUS_200.getMessage();
     }
 
-    public ApiEntity(Object data) {
+    public ApiEntity(T data) {
         this.status = ApiStatus.STATUS_200.getCode();
         this.message = ApiStatus.STATUS_200.getMessage();
         this.data = data;

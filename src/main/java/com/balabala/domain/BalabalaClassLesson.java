@@ -17,6 +17,8 @@ public class BalabalaClassLesson extends AbstractEntity<Long> {
 
     private Long englishTeacherId;
 
+    private Long categoryId;
+
     private String lessonName;
 
     private Date startAt;
@@ -28,5 +30,7 @@ public class BalabalaClassLesson extends AbstractEntity<Long> {
     private String video;
 
     private String room;
+
+    private Boolean prepared;
 
 }

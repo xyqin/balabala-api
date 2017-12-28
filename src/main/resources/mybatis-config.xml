@@ -11,18 +11,22 @@
     </typeAliases>
     <mappers>
         <mapper resource="com/balabala/mapper/BalabalaCampusMapper.xml"/>
-        <mapper resource="com/balabala/mapper/BalabalaClassLessonMapper.xml"/>
         <mapper resource="com/balabala/mapper/BalabalaClassMapper.xml"/>
+        <mapper resource="com/balabala/mapper/BalabalaClassLessonMapper.xml"/>
         <mapper resource="com/balabala/mapper/BalabalaClassMemberMapper.xml"/>
-        <mapper resource="com/balabala/mapper/BalabalaCourseCategoryMapper.xml"/>
         <mapper resource="com/balabala/mapper/BalabalaCourseMapper.xml"/>
+        <mapper resource="com/balabala/mapper/BalabalaCourseCategoryMapper.xml"/>
         <mapper resource="com/balabala/mapper/BalabalaMemberMapper.xml"/>
+        <mapper resource="com/balabala/mapper/BalabalaMemberCommentMapper.xml"/>
+        <mapper resource="com/balabala/mapper/BalabalaMemberHomeworkItemMapper.xml"/>
+        <mapper resource="com/balabala/mapper/BalabalaMemberHomeworkMapper.xml"/>
         <mapper resource="com/balabala/mapper/BalabalaMemberLessonMapper.xml"/>
         <mapper resource="com/balabala/mapper/BalabalaMemberPassportMapper.xml"/>
         <mapper resource="com/balabala/mapper/BalabalaRegionMapper.xml"/>
         <mapper resource="com/balabala/mapper/BalabalaTeacherMapper.xml"/>
-        <mapper resource="com/balabala/mapper/BalabalaTextbookCategoryMapper.xml"/>
-        <mapper resource="com/balabala/mapper/BalabalaTextbookHomeworkMapper.xml"/>
+        <mapper resource="com/balabala/mapper/BalabalaTeacherHomeworkItemMapper.xml"/>
+        <mapper resource="com/balabala/mapper/BalabalaTeacherHomeworkMapper.xml"/>
         <mapper resource="com/balabala/mapper/BalabalaTextbookMapper.xml"/>
+        <mapper resource="com/balabala/mapper/BalabalaTextbookCategoryMapper.xml"/>
     </mappers>
 </configuration>
