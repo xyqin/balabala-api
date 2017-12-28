@@ -19,6 +19,7 @@ import io.swagger.annotations.ApiOperation;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.time.DateUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -184,7 +185,7 @@ public class MemberController {
         BalabalaMemberLessonExample lessonExample = new BalabalaMemberLessonExample();
         lessonExample.createCriteria()
                 .andMemberIdEqualTo(memberId)
-                .andStartAtLessThan(now)
+                .andStartAtLessThan(DateUtils.addMinutes(now, 5))
                 .andEndAtGreaterThan(now)
                 .andDeletedEqualTo(Boolean.FALSE);
         List<BalabalaMemberLesson> lessons = memberLessonMapper.selectByExample(lessonExample);

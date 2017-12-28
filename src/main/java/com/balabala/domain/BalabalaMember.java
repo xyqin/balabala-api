@@ -23,4 +23,6 @@ public class BalabalaMember extends AbstractEntity<Long> {
 
     private String token;
 
+    private Integer points;
+
 }

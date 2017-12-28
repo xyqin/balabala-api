@@ -16,6 +16,7 @@ import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.time.DateFormatUtils;
+import org.apache.commons.lang3.time.DateUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -329,7 +330,7 @@ public class TeacherController {
         BalabalaClassLessonExample lessonExample = new BalabalaClassLessonExample();
         lessonExample.createCriteria()
                 .andTeacherIdEqualTo(teacherId)
-                .andStartAtLessThan(now)
+                .andStartAtLessThan(DateUtils.addMinutes(now, 5))
                 .andEndAtGreaterThan(now)
                 .andDeletedEqualTo(Boolean.FALSE);
         List<BalabalaClassLesson> lessons = lessonMapper.selectByExample(lessonExample);
@@ -571,6 +572,56 @@ public class TeacherController {
         commentToBeCreated.setTeacherId(teacherId);
         commentToBeCreated.setContent(request.getContent());
         commentMapper.insertSelective(commentToBeCreated);
+        return new ApiEntity();
+    }
+
+    @ApiOperation(value = "发放积分")
+    @PostMapping(value = "/members/{id}/points")
+    public ApiEntity givePoints(
+            @PathVariable Long id,
+            @Validated @RequestBody GivePointsRequest request) {
+        if (!authenticator.authenticateForTeacher()) {
+            return new ApiEntity(ApiStatus.STATUS_401);
+        }
+
+        Long teacherId = authenticator.getCurrentTeacherId();
+        BalabalaMember member = memberMapper.selectByPrimaryKey(id);
+
+        if (Objects.isNull(member)) {
+            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "找不到会员");
+        }
+
+        BalabalaMember memberToBeUpdated = new BalabalaMember();
+        memberToBeUpdated.setId(member.getId());
+        memberToBeUpdated.setPoints(member.getPoints() + request.getPoints());
+        memberMapper.updateByPrimaryKeySelective(memberToBeUpdated);
+        return new ApiEntity();
+    }
+
+    @ApiOperation(value = "邀请试听会员")
+    @PostMapping(value = "/members/{id}/probation")
+    public ApiEntity inviteMember(
+            @PathVariable Long id,
+            @RequestBody InviteMemberRequest request) {
+        if (!authenticator.authenticateForTeacher()) {
+            return new ApiEntity(ApiStatus.STATUS_401);
+        }
+
+        Long teacherId = authenticator.getCurrentTeacherId();
+
+        BalabalaClassLesson lesson = lessonMapper.selectByPrimaryKey(request.getLessonId());
+
+        if (Objects.isNull(lesson)) {
+            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "找不到课时");
+        }
+
+        BalabalaMemberLesson memberLesson = new BalabalaMemberLesson();
+        memberLesson.setMemberId(id);
+        memberLesson.setClassId(lesson.getClassId());
+        memberLesson.setLessonId(lesson.getId());
+        memberLesson.setStartAt(lesson.getStartAt());
+        memberLesson.setEndAt(lesson.getEndAt());
+        memberLessonMapper.insertSelective(memberLesson);
         return new ApiEntity();
     }
 
