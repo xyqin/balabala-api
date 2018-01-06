@@ -2,25 +2,17 @@ package com.balabala.web.request;
 
 import lombok.Data;
 
-import java.util.Date;
-
 @Data
 public class UpdateMemberInfoRequest {
 
-    private Long regionId;
+    private Long campusId;
 
-    private String name;
+    private String nickname;
 
-    private String dealer;
+    private String avatar;
 
-    private String group;
+    private String englishName;
 
-    private String brand;
-
-    private String postalAddress;
-
-    private int hallArea;
-
-    private Date openAt;
+    private String gender;
 
 }

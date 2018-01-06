@@ -9,13 +9,12 @@ import com.balabala.repository.*;
 import com.balabala.repository.example.BalabalaClassMemberExample;
 import com.balabala.repository.example.BalabalaMemberLessonExample;
 import com.balabala.repository.example.BalabalaMemberPassportExample;
-import com.balabala.web.request.SigninRequest;
-import com.balabala.web.request.SignupRequest;
-import com.balabala.web.request.UpdateMemberInfoRequest;
+import com.balabala.web.request.*;
 import com.balabala.web.response.*;
 import com.google.common.collect.Lists;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.collections4.CollectionUtils;
@@ -48,6 +47,9 @@ public class MemberController {
 
     @Autowired
     private BalabalaMemberPassportMapper memberPassportMapper;
+
+    @Autowired
+    private BalabalaMemberHomeworkMapper memberHomeworkMapper;
 
     @Autowired
     private BalabalaClassLessonMapper lessonMapper;
@@ -107,7 +109,7 @@ public class MemberController {
 
     @ApiOperation(value = "手机号登录")
     @PostMapping(value = "/members/signin")
-    public ApiEntity signin(@Validated @RequestBody SigninRequest request) {
+    public ApiEntity<SigninResponse> signin(@Validated @RequestBody SigninRequest request) {
         BalabalaMemberPassportExample example = new BalabalaMemberPassportExample();
         example.createCriteria()
                 .andProviderEqualTo(BalabalaMemberPassportProvider.PHONE.name())
@@ -135,9 +137,15 @@ public class MemberController {
         return new ApiEntity(response);
     }
 
+    @ApiOperation(value = "忘记密码")
+    @PostMapping(value = "/members/password/reset")
+    public ApiEntity resetPassword(@RequestBody ResetPasswordRequest request) {
+        return new ApiEntity();
+    }
+
     @ApiOperation(value = "获取会员信息")
     @GetMapping(value = "/members")
-    public ApiEntity getMember() {
+    public ApiEntity<GetMemberResponse> getMember() {
         if (!authenticator.authenticate()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
@@ -145,6 +153,7 @@ public class MemberController {
         Long memberId = authenticator.getCurrentMemberId();
 
 
+        // TODO 获取会员信息
         GetMemberResponse response = new GetMemberResponse();
 
 
@@ -160,6 +169,7 @@ public class MemberController {
 
         Long memberId = authenticator.getCurrentMemberId();
 
+        // TODO 更新会员信息
 
         memberMapper.updateByPrimaryKeySelective(null);
         return new ApiEntity();
@@ -174,7 +184,7 @@ public class MemberController {
 
     @ApiOperation(value = "进入直播课堂")
     @GetMapping(value = "/members/lessons/current")
-    public ApiEntity currentLesson() {
+    public ApiEntity<CurrentLessonResponse> currentLesson() {
         if (!authenticator.authenticate()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
@@ -230,7 +240,9 @@ public class MemberController {
 
     @ApiOperation(value = "获取课程回顾")
     @GetMapping(value = "/members/lessons/history")
-    public ApiEntity getLessonHistory(@RequestParam int page, @RequestParam int size) {
+    public ApiEntity<List<LessonDto>> getLessonHistory(
+            @RequestParam int page,
+            @RequestParam int size) {
         if (!authenticator.authenticate()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
@@ -260,6 +272,61 @@ public class MemberController {
         }
 
         return new ApiEntity(response);
+    }
+
+    @ApiOperation(value = "获取我的作业列表")
+    @GetMapping(value = "/members/homeworks")
+    public ApiEntity<List<HomeworkDto>> getHomeworks(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return new ApiEntity<>();
+    }
+
+    @ApiOperation(value = "获取我的作业题目列表")
+    @GetMapping(value = "/members/homeworks/{id}/items")
+    public ApiEntity<List<HomeworkItemDto>> getHomeworkItems() {
+        return new ApiEntity<>();
+    }
+
+    @ApiOperation(value = "提交作业")
+    @PostMapping(value = "/members/homeworks/{id}/items")
+    public ApiEntity submitHomework(@RequestBody SubmitHomeworkRequest request) {
+        return new ApiEntity();
+    }
+
+    @ApiOperation(value = "获取我的班级信息")
+    @GetMapping(value = "/members/classes")
+    public ApiEntity<GetMemberClassResponse> getMemberClass() {
+        return new ApiEntity<>();
+    }
+
+    @ApiOperation(value = "获取我的授课列表")
+    @GetMapping(value = "/members/lessons")
+    public ApiEntity<List<LessonDto>> getLessons(
+            @ApiParam(value = "课时类型（online线上，offline线下）") @RequestParam(defaultValue = "online") String type) {
+        if ("offline".equals(type)) {
+
+        } else {
+
+        }
+
+        return new ApiEntity<>();
+    }
+
+    @ApiOperation(value = "获取我的评语列表")
+    @GetMapping(value = "/members/lessons")
+    public ApiEntity<List<CommentDto>> getComments(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return new ApiEntity<>();
+    }
+
+    @ApiOperation(value = "获取我的积分日志列表")
+    @GetMapping(value = "/members/points/logs")
+    public ApiEntity<List<PointLogDto>> getPointLogs(
+            @RequestParam int page,
+            @RequestParam int size) {
+        return new ApiEntity<>();
     }
 
 }

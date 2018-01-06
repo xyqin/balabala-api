@@ -5,13 +5,13 @@ import lombok.Data;
 import java.util.Date;
 
 @Data
-public class CommentDto {
+public class PointLogDto {
 
     private Long id;
 
-    private String teacher;
+    private String type;
 
-    private String content;
+    private int points;
 
     private Date createdAt;
 

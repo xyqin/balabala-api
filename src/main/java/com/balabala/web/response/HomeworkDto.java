@@ -5,14 +5,16 @@ import lombok.Data;
 import java.util.Date;
 
 @Data
-public class CommentDto {
+public class HomeworkDto {
 
     private Long id;
 
+    private String name;
+
     private String teacher;
 
-    private String content;
+    private String status;
 
-    private Date createdAt;
+    private Date closingAt;
 
 }

@@ -17,4 +17,6 @@ public class BalabalaMemberHomework extends AbstractEntity<Long> {
 
     private Date closingAt;
 
+    private HomeworkStatus status;
+
 }

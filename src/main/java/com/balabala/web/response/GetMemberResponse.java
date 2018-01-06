@@ -2,8 +2,6 @@ package com.balabala.web.response;
 
 import lombok.Data;
 
-import java.util.Date;
-
 /**
  * Created by xyqin on 2017/4/7.
  */
@@ -12,28 +10,18 @@ public class GetMemberResponse {
 
     private Long id;
 
-    private Long regionId;
+    private String nickname;
 
-    private String region;
+    private String avatar;
 
-    private String level;
+    private String englishName;
 
-    private String name;
+    private String gender;
 
-    private String phoneNumber;
+    private String campus;
 
-    private String email;
+    private int points;
 
-    private String dealer;
-
-    private String group;
-
-    private String brand;
-
-    private String postalAddress;
-
-    private int hallArea;
-
-    private Date openAt;
+    private boolean wechatBound;
 
 }
