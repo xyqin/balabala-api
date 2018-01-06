@@ -14,9 +14,6 @@ public class ApplyClassRequest {
     private String teacherName;
 
     @NotNull
-    private Long courseCategoryId;
-
-    @NotNull
     private Long courseId;
 
     @NotBlank

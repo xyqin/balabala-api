@@ -454,18 +454,69 @@ public class TeacherController {
 
             for (BalabalaClassMember classMember : classMembers) {
                 BalabalaMember member = memberMapper.selectByPrimaryKey(classMember.getMemberId());
-                ClassMemberDto mDto = new ClassMemberDto();
-                mDto.setId(member.getId());
-                mDto.setNickname(member.getNickname());
-                mDto.setAvatar(member.getAvatar());
-                mDto.setAccid(member.getAccid());
-                dto.getMembers().add(mDto);
+
+                if (Objects.nonNull(member)) {
+                    ClassMemberDto mDto = new ClassMemberDto();
+                    mDto.setId(member.getId());
+                    mDto.setNickname(member.getNickname());
+                    mDto.setAvatar(member.getAvatar());
+                    mDto.setAccid(member.getAccid());
+                    dto.getMembers().add(mDto);
+                }
             }
 
             response.add(dto);
         }
 
         return new ApiEntity(response);
+    }
+
+    @ApiOperation(value = "获取班级成员详情")
+    @GetMapping(value = "/teachers/classes/{classId}/members/{memberId}")
+    public ApiEntity<GetClassMemberResponse> getClassMember(
+            @RequestParam Long classId,
+            @RequestParam Long memberId) {
+        if (!authenticator.authenticateForTeacher()) {
+            return new ApiEntity(ApiStatus.STATUS_401);
+        }
+
+        Long teacherId = authenticator.getCurrentTeacherId();
+
+        BalabalaClassMemberExample example = new BalabalaClassMemberExample();
+        example.createCriteria()
+                .andClassIdEqualTo(classId)
+                .andMemberIdEqualTo(memberId)
+                .andDeletedEqualTo(Boolean.FALSE);
+        List<BalabalaClassMember> members = classMemberMapper.selectByExample(example);
+
+        if (CollectionUtils.isEmpty(members)) {
+            return new ApiEntity<>(ApiStatus.STATUS_400.getCode(), "找不到班级成员, class=" + classId + ", member=" + memberId);
+        }
+
+        BalabalaMember member = memberMapper.selectByPrimaryKey(memberId);
+        BalabalaMemberCommentExample commentExample = new BalabalaMemberCommentExample();
+        commentExample.createCriteria()
+                .andTeacherIdEqualTo(teacherId)
+                .andMemberIdEqualTo(memberId)
+                .andDeletedEqualTo(Boolean.FALSE);
+        commentExample.setOrderByClause("created_at DESC");
+        List<BalabalaMemberComment> comments = commentMapper.selectByExample(commentExample);
+
+        GetClassMemberResponse response = new GetClassMemberResponse();
+        response.setId(member.getId());
+        response.setNickname(member.getNickname());
+        response.setAvatar(member.getAvatar());
+        response.setPoints(member.getPoints());
+
+        for (BalabalaMemberComment comment : comments) {
+            CommentDto dto = new CommentDto();
+            dto.setId(comment.getId());
+            dto.setContent(comment.getContent());
+            dto.setCreatedAt(comment.getCreatedAt());
+            response.getComments().add(dto);
+        }
+
+        return new ApiEntity<>(response);
     }
 
     @ApiOperation(value = "申请开班")
@@ -559,7 +610,7 @@ public class TeacherController {
     }
 
     @ApiOperation(value = "发表评语")
-    @GetMapping(value = "/members/{id}/comments")
+    @PostMapping(value = "/members/{id}/comments")
     public ApiEntity makeComment(@RequestBody MakeCommentRequest request) {
         if (!authenticator.authenticateForTeacher()) {
             return new ApiEntity(ApiStatus.STATUS_401);

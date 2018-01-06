@@ -1,16 +1,20 @@
 package com.balabala.web;
 
 import com.balabala.domain.BalabalaCampus;
+import com.balabala.domain.BalabalaCourse;
+import com.balabala.domain.BalabalaCourseCategory;
 import com.balabala.domain.BalabalaRegion;
 import com.balabala.repository.BalabalaCampusMapper;
+import com.balabala.repository.BalabalaCourseCategoryMapper;
+import com.balabala.repository.BalabalaCourseMapper;
 import com.balabala.repository.BalabalaRegionMapper;
 import com.balabala.repository.example.BalabalaCampusExample;
+import com.balabala.repository.example.BalabalaCourseCategoryExample;
+import com.balabala.repository.example.BalabalaCourseExample;
 import com.balabala.repository.example.BalabalaRegionExample;
 import com.balabala.service.VerificationService;
 import com.balabala.web.exception.InternalServerErrorException;
-import com.balabala.web.response.CampusDto;
-import com.balabala.web.response.RegionDto;
-import com.balabala.web.response.UploadResponse;
+import com.balabala.web.response.*;
 import com.google.common.collect.Lists;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -60,9 +64,15 @@ public class CommonController {
     @Autowired
     private BalabalaRegionMapper regionMapper;
 
+    @Autowired
+    private BalabalaCourseMapper courseMapper;
+
+    @Autowired
+    private BalabalaCourseCategoryMapper courseCategoryMapper;
+
     @ApiOperation(value = "获取校区列表")
     @GetMapping(value = "/campuses")
-    public ApiEntity getCampuses() {
+    public ApiEntity<List<CampusDto>> getCampuses() {
         BalabalaCampusExample example = new BalabalaCampusExample();
         example.createCriteria().andDeletedEqualTo(Boolean.FALSE);
         example.setOrderByClause("created_at DESC");
@@ -76,11 +86,50 @@ public class CommonController {
             response.add(dto);
         }
 
-        return new ApiEntity(response);
+        return new ApiEntity<>(response);
+    }
+
+    @ApiOperation(value = "获取课程分类列表")
+    @GetMapping(value = "/courses/categories")
+    public ApiEntity<List<CourseCategoryDto>> getCourseCategories() {
+        BalabalaCourseCategoryExample example = new BalabalaCourseCategoryExample();
+        example.createCriteria().andDeletedEqualTo(Boolean.FALSE);
+        List<BalabalaCourseCategory> categories = courseCategoryMapper.selectByExample(example);
+        List<CourseCategoryDto> response = Lists.newArrayList();
+
+        for (BalabalaCourseCategory category : categories) {
+            CourseCategoryDto dto = new CourseCategoryDto();
+            dto.setId(category.getId());
+            dto.setName(category.getCategoryName());
+            response.add(dto);
+        }
+
+        return new ApiEntity<>(response);
+    }
+
+    @ApiOperation(value = "获取课程列表")
+    @GetMapping(value = "/courses")
+    public ApiEntity<List<CourseDto>> getCourses(@RequestParam Long categoryId) {
+        BalabalaCourseExample example = new BalabalaCourseExample();
+        example.createCriteria()
+                .andCategoryIdEqualTo(categoryId)
+                .andDeletedEqualTo(Boolean.FALSE);
+        List<BalabalaCourse> courses = courseMapper.selectByExample(example);
+        List<CourseDto> response = Lists.newArrayList();
+
+        for (BalabalaCourse course : courses) {
+            CourseDto dto = new CourseDto();
+            dto.setId(course.getId());
+            dto.setName(course.getCourseName());
+            response.add(dto);
+        }
+
+        return new ApiEntity<>(response);
     }
 
     @ApiOperation(value = "获取手机验证码")
     @GetMapping(value = "/verifications/code")
+
     public ApiEntity newVerificationCode(@RequestParam String number) {
         String code = verificationService.newVerificationCode(number);
 
@@ -91,7 +140,7 @@ public class CommonController {
 
     @ApiOperation(value = "获取地区列表")
     @GetMapping(value = "/regions")
-    public ApiEntity getRegions() {
+    public ApiEntity<List<RegionDto>> getRegions() {
         BalabalaRegionExample example = new BalabalaRegionExample();
         example.createCriteria().andParentIdEqualTo(0L).andDeletedEqualTo(Boolean.FALSE);
         example.setOrderByClause("position DESC");
@@ -106,12 +155,12 @@ public class CommonController {
             response.add(dto);
         }
 
-        return new ApiEntity(response);
+        return new ApiEntity<>(response);
     }
 
     @ApiOperation(value = "上传图片文件")
     @PostMapping(value = "/storage/images")
-    public ApiEntity uploadImage(@RequestParam("file") Part file) {
+    public ApiEntity<UploadResponse> uploadImage(@RequestParam("file") Part file) {
         int fileSizeInKB = BigInteger.valueOf(file.getSize()).divide(BigInteger.valueOf(1024)).intValue();
         String submittedFilename = file.getSubmittedFileName();
 
@@ -140,12 +189,12 @@ public class CommonController {
         String link = imageLink + "/image/" + currentDate + "/" + filename;
         UploadResponse response = new UploadResponse();
         response.setLink(link);
-        return new ApiEntity(response);
+        return new ApiEntity<>(response);
     }
 
     @ApiOperation(value = "上传图片文件")
     @PostMapping(value = "/storage/videos")
-    public ApiEntity uploadVideo(@RequestParam("file") Part file) {
+    public ApiEntity<UploadResponse> uploadVideo(@RequestParam("file") Part file) {
         String submittedFilename = file.getSubmittedFileName();
 
         if (!FilenameUtils.isExtension(submittedFilename, SUPPORTED_VIDEO_EXTENSIONS)) {
@@ -169,7 +218,7 @@ public class CommonController {
         String link = imageLink + "/video/" + currentDate + "/" + filename;
         UploadResponse response = new UploadResponse();
         response.setLink(link);
-        return new ApiEntity(response);
+        return new ApiEntity<>(response);
     }
 
 }
