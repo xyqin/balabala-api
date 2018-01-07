@@ -16,6 +16,9 @@ public class ApplyClassRequest {
     @NotNull
     private Long courseId;
 
+    @NotNull
+    private Long categoryId;
+
     @NotBlank
     private String className;
 

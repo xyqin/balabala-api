@@ -61,6 +61,9 @@ public class MemberController {
     private BalabalaClassMemberMapper classMemberMapper;
 
     @Autowired
+    private BalabalaCampusMapper campusMapper;
+
+    @Autowired
     private NeteaseClient neteaseClient;
 
     /* 会员信息及账号相关接口 */
@@ -151,12 +154,25 @@ public class MemberController {
         }
 
         Long memberId = authenticator.getCurrentMemberId();
+        BalabalaMember member = memberMapper.selectByPrimaryKey(memberId);
+        BalabalaCampus campus = campusMapper.selectByPrimaryKey(member.getCampusId());
+        BalabalaMemberPassportExample example = new BalabalaMemberPassportExample();
+        example.createCriteria()
+                .andMemberIdEqualTo(memberId)
+                .andProviderEqualTo(BalabalaMemberPassportProvider.WECHAT.name())
+                .andDeletedEqualTo(Boolean.FALSE);
+        List<BalabalaMemberPassport> passports = memberPassportMapper.selectByExample(example);
 
-
-        // TODO 获取会员信息
+        // 获取会员信息
         GetMemberResponse response = new GetMemberResponse();
-
-
+        response.setId(member.getId());
+        response.setNickname(member.getNickname());
+        response.setAvatar(member.getAvatar());
+        response.setEnglishName(member.getEnglishName());
+        response.setGender(member.getGender().name());
+        response.setPoints(member.getPoints());
+        response.setCampus(campus.getCampusName());
+        response.setWechatBound(CollectionUtils.isNotEmpty(passports));
         return new ApiEntity(response);
     }
 
@@ -168,10 +184,16 @@ public class MemberController {
         }
 
         Long memberId = authenticator.getCurrentMemberId();
+        BalabalaMember memberToBeUpdated = new BalabalaMember();
+        memberToBeUpdated.setId(memberId);
+        memberToBeUpdated.setCampusId(request.getCampusId());
+        memberToBeUpdated.setNickname(request.getNickname());
+        memberToBeUpdated.setAvatar(request.getAvatar());
+        memberToBeUpdated.setEnglishName(request.getEnglishName());
+        memberToBeUpdated.setGender(BalabalaMemberGender.valueOf(request.getGender()));
 
-        // TODO 更新会员信息
-
-        memberMapper.updateByPrimaryKeySelective(null);
+        // 更新会员信息
+        memberMapper.updateByPrimaryKeySelective(memberToBeUpdated);
         return new ApiEntity();
     }
 

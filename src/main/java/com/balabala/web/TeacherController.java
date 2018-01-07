@@ -530,6 +530,7 @@ public class TeacherController {
 
         BalabalaClass aClass = new BalabalaClass();
         aClass.setCourseId(request.getCourseId());
+        aClass.setCategoryId(request.getCategoryId());
         aClass.setClassName(request.getClassName());
         aClass.setTeacherId(teacherId);
         aClass.setStatus(BalabalaClassStatus.IN_REVIEW);
@@ -626,7 +627,7 @@ public class TeacherController {
         return new ApiEntity();
     }
 
-    @ApiOperation(value = "发放积分")
+    @ApiOperation(value = "发放表情增加积分")
     @PostMapping(value = "/members/{id}/points")
     public ApiEntity givePoints(
             @PathVariable Long id,
