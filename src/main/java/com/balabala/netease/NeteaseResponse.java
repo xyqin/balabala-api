@@ -10,6 +10,8 @@ public abstract class NeteaseResponse {
 
     private int code;
 
+    private String desc;
+
     public boolean isSuccess() {
         return code == 200;
     }

@@ -87,7 +87,7 @@ public class MemberController {
 
     @ApiOperation(value = "注册会员")
     @PostMapping(value = "/members/signup")
-    public ApiEntity signup(@Validated @RequestBody SignupRequest request) throws IOException {
+    public ApiEntity signup(@Validated @RequestBody SignupRequest request) {
         // 检查短信验证码
         SmsVerifyCodeRequest verifyCodeRequest = new SmsVerifyCodeRequest();
         verifyCodeRequest.setMobile(request.getPhoneNumber());
@@ -97,12 +97,12 @@ public class MemberController {
         try {
             verifyCodeResponse = neteaseClient.execute(verifyCodeRequest);
         } catch (IOException e) {
-            log.error("controller:verifications:code:调用网易云检查短信验证码失败", e);
+            log.error("controller:members:signup:调用网易云检查短信验证码失败", e);
             return new ApiEntity(ApiStatus.STATUS_500);
         }
 
         if (!verifyCodeResponse.isSuccess()) {
-            log.error("controller:verifications:code:调用网易云检查短信验证码失败, code=" + verifyCodeResponse.getCode());
+            log.error("controller:members:signup:调用网易云检查短信验证码失败, code=" + verifyCodeResponse.getCode());
             return new ApiEntity(ApiStatus.STATUS_500);
         }
 
@@ -120,26 +120,34 @@ public class MemberController {
         // 注册网易云IM账号
         ImUserCreateRequest imUserCreateRequest = new ImUserCreateRequest();
         imUserCreateRequest.setAccid("member_" + request.getPhoneNumber());
-        ImUserCreateResponse imUserCreateResponse = neteaseClient.execute(imUserCreateRequest);
+        ImUserCreateResponse imUserCreateResponse = null;
 
-        if (imUserCreateResponse.isSuccess()) {
-            BalabalaMember member = new BalabalaMember();
-            member.setCampusId(request.getCampusId());
-            member.setAccid(imUserCreateResponse.getInfo().getAccid());
-            member.setToken(imUserCreateResponse.getInfo().getToken());
-            memberMapper.insertSelective(member);
-
-            BalabalaMemberPassport passport = new BalabalaMemberPassport();
-            passport.setMemberId(member.getId());
-            passport.setProvider(MemberPassportProvider.PHONE);
-            passport.setProviderId(request.getPhoneNumber());
-            passport.setPassword(DigestUtils.md5Hex(request.getPassword()));
-            memberPassportMapper.insertSelective(passport);
-
-            // 往session中设置会员ID
-            authenticator.newSession(member.getId());
+        try {
+            imUserCreateResponse = neteaseClient.execute(imUserCreateRequest);
+        } catch (IOException e) {
+            e.printStackTrace();
         }
 
+        if (!imUserCreateResponse.isSuccess()) {
+            log.error("controller:members:signup:调用网易云注册IM账号失败, code=" + imUserCreateResponse.getCode());
+            return new ApiEntity(ApiStatus.STATUS_500);
+        }
+
+        BalabalaMember member = new BalabalaMember();
+        member.setCampusId(request.getCampusId());
+        member.setAccid(imUserCreateResponse.getInfo().getAccid());
+        member.setToken(imUserCreateResponse.getInfo().getToken());
+        memberMapper.insertSelective(member);
+
+        BalabalaMemberPassport passport = new BalabalaMemberPassport();
+        passport.setMemberId(member.getId());
+        passport.setProvider(MemberPassportProvider.PHONE);
+        passport.setProviderId(request.getPhoneNumber());
+        passport.setPassword(DigestUtils.md5Hex(request.getPassword()));
+        memberPassportMapper.insertSelective(passport);
+
+        // 往session中设置会员ID
+        authenticator.newSession(member.getId());
         return new ApiEntity();
     }
 
