@@ -4,7 +4,9 @@ import com.balabala.auth.Authenticator;
 import com.balabala.domain.*;
 import com.balabala.netease.NeteaseClient;
 import com.balabala.netease.request.ImUserCreateRequest;
+import com.balabala.netease.request.SmsVerifyCodeRequest;
 import com.balabala.netease.response.ImUserCreateResponse;
+import com.balabala.netease.response.SmsVerifyCodeResponse;
 import com.balabala.repository.*;
 import com.balabala.repository.example.*;
 import com.balabala.web.request.*;
@@ -16,13 +18,14 @@ import io.swagger.annotations.ApiParam;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.lang3.time.DateFormatUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.time.DateUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
+import java.text.ParseException;
 import java.util.Date;
 import java.util.List;
 import java.util.Objects;
@@ -85,7 +88,23 @@ public class MemberController {
     @ApiOperation(value = "注册会员")
     @PostMapping(value = "/members/signup")
     public ApiEntity signup(@Validated @RequestBody SignupRequest request) throws IOException {
-        // TODO 检查手机号验证码
+        // 检查短信验证码
+        SmsVerifyCodeRequest verifyCodeRequest = new SmsVerifyCodeRequest();
+        verifyCodeRequest.setMobile(request.getPhoneNumber());
+        verifyCodeRequest.setCode(request.getCode());
+        SmsVerifyCodeResponse verifyCodeResponse = null;
+
+        try {
+            verifyCodeResponse = neteaseClient.execute(verifyCodeRequest);
+        } catch (IOException e) {
+            log.error("controller:verifications:code:调用网易云检查短信验证码失败", e);
+            return new ApiEntity(ApiStatus.STATUS_500);
+        }
+
+        if (!verifyCodeResponse.isSuccess()) {
+            log.error("controller:verifications:code:调用网易云检查短信验证码失败, code=" + verifyCodeResponse.getCode());
+            return new ApiEntity(ApiStatus.STATUS_500);
+        }
 
         BalabalaMemberPassportExample example = new BalabalaMemberPassportExample();
         example.createCriteria()
@@ -274,39 +293,30 @@ public class MemberController {
         return new ApiEntity(response);
     }
 
-    @ApiOperation(value = "获取课程回顾")
-    @GetMapping(value = "/members/lessons/history")
-    public ApiEntity<List<LessonDto>> getLessonHistory(
-            @RequestParam int page,
-            @RequestParam int size) {
+    @ApiOperation(value = "获取课程回顾详情")
+    @GetMapping(value = "/members/lessons/{id}")
+    public ApiEntity getLesson(@RequestParam Long id) {
         if (!authenticator.authenticate()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
 
         Long memberId = authenticator.getCurrentMemberId();
-
-        Date now = new Date();
         BalabalaMemberLessonExample example = new BalabalaMemberLessonExample();
         example.createCriteria()
                 .andMemberIdEqualTo(memberId)
-                .andEndAtLessThan(now)
+                .andLessonIdEqualTo(id)
                 .andDeletedEqualTo(Boolean.FALSE);
-        example.setStartRow((page - 1) * size);
-        example.setPageSize(size);
-        example.setOrderByClause("end_at DESC");
-        List<BalabalaMemberLesson> memberLessons = memberLessonMapper.selectByExample(example);
-        List<LessonDto> response = Lists.newArrayList();
+        BalabalaClassLesson lesson = lessonMapper.selectByPrimaryKey(id);
+        BalabalaClass aClass = classMapper.selectByPrimaryKey(lesson.getClassId());
+        BalabalaTeacher teacher = teacherMapper.selectByPrimaryKey(lesson.getTeacherId());
 
-        for (BalabalaMemberLesson memberLesson : memberLessons) {
-            BalabalaClassLesson lesson = lessonMapper.selectByPrimaryKey(memberLesson.getLessonId());
-            LessonDto dto = new LessonDto();
-            dto.setId(lesson.getId());
-            dto.setName(lesson.getLessonName());
-            dto.setDuration(0);
-            dto.setThumbnail(lesson.getThumbnail());
-            response.add(dto);
-        }
-
+        GetLessonResponse response = new GetLessonResponse();
+        response.setId(lesson.getId());
+        response.setName(lesson.getLessonName());
+        response.setClassName(aClass.getClassName());
+        response.setTeacherName(teacher.getFullName());
+        response.setDuration((int) ((lesson.getEndAt().getTime() - lesson.getStartAt().getTime()) / 1000 / 60));
+        response.setVideo("http://www.baidu.com");
         return new ApiEntity(response);
     }
 
@@ -495,8 +505,7 @@ public class MemberController {
             dto.setThumbnail(lesson.getThumbnail());
             dto.setDuration((int) ((lesson.getEndAt().getTime() - lesson.getStartAt().getTime()) / 1000 / 60));
 
-            if (Objects.equals(DateFormatUtils.format(new Date(), "yyyyMMdd"),
-                    DateFormatUtils.format(lesson.getStartAt(), "yyyyMMdd"))) {
+            if (DateUtils.isSameDay(new Date(), lesson.getStartAt())) {
                 dto.setStatus("SOON");
             } else {
                 dto.setStatus("PENDING");
@@ -511,9 +520,10 @@ public class MemberController {
     @ApiOperation(value = "获取我的授课历史列表")
     @GetMapping(value = "/members/lessons/history")
     public ApiEntity<List<LessonDto>> getLessonsHistory(
-            @ApiParam(value = "课时类型（online线上，offline线下）") @RequestParam(defaultValue = "online") String type,
-            @RequestParam int page,
-            @RequestParam int size) {
+            @ApiParam(value = "课时类型（online线上，offline线下）", required = true) @RequestParam(defaultValue = "online") String type,
+            @ApiParam(value = "历史时间范围（yyyyMMddHHmmss）") @RequestParam(required = false) String timestamp,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size) {
         if (!authenticator.authenticate()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
@@ -527,14 +537,36 @@ public class MemberController {
         }
 
         BalabalaMemberLessonExample example = new BalabalaMemberLessonExample();
-        example.createCriteria()
-                .andMemberIdEqualTo(memberId)
-                .andTypeEqualTo(typeEnum.name()).andDeletedEqualTo(Boolean.FALSE)
-                .andEndAtLessThan(new Date())
-                .andDeletedEqualTo(Boolean.FALSE);
-        example.setStartRow((page - 1) * size);
-        example.setPageSize(size);
         example.setOrderByClause("end_at DESC");
+
+        if (StringUtils.isNotBlank(timestamp)) {
+            Date historyTimestamp = null;
+            try {
+                historyTimestamp = DateUtils.parseDate(timestamp, "yyyyMMddHHmmss");
+            } catch (ParseException e) {
+                return new ApiEntity<>(ApiStatus.STATUS_400.getCode(), "历史时间范围值无效, 正确格式: yyyyMMddHHmmss");
+            }
+
+            if (historyTimestamp.after(new Date())) {
+                return new ApiEntity<>(ApiStatus.STATUS_400.getCode(), "历史时间范围值必须早于当前时间");
+            }
+
+            example.createCriteria()
+                    .andMemberIdEqualTo(memberId)
+                    .andTypeEqualTo(typeEnum.name()).andDeletedEqualTo(Boolean.FALSE)
+                    .andEndAtLessThan(new Date())
+                    .andStartAtGreaterThan(historyTimestamp)
+                    .andDeletedEqualTo(Boolean.FALSE);
+        } else {
+            example.createCriteria()
+                    .andMemberIdEqualTo(memberId)
+                    .andTypeEqualTo(typeEnum.name()).andDeletedEqualTo(Boolean.FALSE)
+                    .andEndAtLessThan(new Date())
+                    .andDeletedEqualTo(Boolean.FALSE);
+            example.setStartRow((page - 1) * size);
+            example.setPageSize(size);
+        }
+
         List<BalabalaMemberLesson> lessons = memberLessonMapper.selectByExample(example);
         List<LessonDto> response = Lists.newArrayList();
 

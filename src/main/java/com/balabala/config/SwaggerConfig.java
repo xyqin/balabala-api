@@ -39,7 +39,6 @@ public class SwaggerConfig {
         return Predicates.or(
                 PathSelectors.regex("/campuses.*"),
                 PathSelectors.regex("/images.*"),
-                PathSelectors.regex("/lessons.*"),
                 PathSelectors.regex("/members.*"),
                 PathSelectors.regex("/regions.*"),
                 PathSelectors.regex("/storage.*"),

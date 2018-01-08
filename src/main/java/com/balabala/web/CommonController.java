@@ -4,6 +4,9 @@ import com.balabala.domain.BalabalaCampus;
 import com.balabala.domain.BalabalaCourse;
 import com.balabala.domain.BalabalaCourseCategory;
 import com.balabala.domain.BalabalaRegion;
+import com.balabala.netease.NeteaseClient;
+import com.balabala.netease.request.SmsSendCodeRequest;
+import com.balabala.netease.response.SmsSendCodeResponse;
 import com.balabala.repository.BalabalaCampusMapper;
 import com.balabala.repository.BalabalaCourseCategoryMapper;
 import com.balabala.repository.BalabalaCourseMapper;
@@ -12,7 +15,6 @@ import com.balabala.repository.example.BalabalaCampusExample;
 import com.balabala.repository.example.BalabalaCourseCategoryExample;
 import com.balabala.repository.example.BalabalaCourseExample;
 import com.balabala.repository.example.BalabalaRegionExample;
-import com.balabala.service.VerificationService;
 import com.balabala.web.exception.InternalServerErrorException;
 import com.balabala.web.response.*;
 import com.google.common.collect.Lists;
@@ -56,9 +58,6 @@ public class CommonController {
     private String imageLink;
 
     @Autowired
-    private VerificationService verificationService;
-
-    @Autowired
     private BalabalaCampusMapper campusMapper;
 
     @Autowired
@@ -69,6 +68,9 @@ public class CommonController {
 
     @Autowired
     private BalabalaCourseCategoryMapper courseCategoryMapper;
+
+    @Autowired
+    private NeteaseClient neteaseClient;
 
     @ApiOperation(value = "获取校区列表")
     @GetMapping(value = "/campuses")
@@ -129,11 +131,21 @@ public class CommonController {
 
     @ApiOperation(value = "获取手机验证码")
     @GetMapping(value = "/verifications/code")
-
     public ApiEntity newVerificationCode(@RequestParam String number) {
-        String code = verificationService.newVerificationCode(number);
+        SmsSendCodeRequest sendCodeRequest = new SmsSendCodeRequest();
+        sendCodeRequest.setMobile(number);
+        SmsSendCodeResponse sendCodeResponse = null;
+        try {
+            sendCodeResponse = neteaseClient.execute(sendCodeRequest);
+        } catch (IOException e) {
+            log.error("controller:verifications:code:调用网易云发送短信验证码失败", e);
+            return new ApiEntity(ApiStatus.STATUS_500);
+        }
 
-        // TODO 发送手机验证码
+        if (!sendCodeResponse.isSuccess()) {
+            log.error("controller:verifications:code:调用网易云发送短信验证码失败, code=" + sendCodeResponse.getCode());
+            return new ApiEntity(ApiStatus.STATUS_500);
+        }
 
         return new ApiEntity();
     }

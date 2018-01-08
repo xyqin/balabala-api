@@ -12,6 +12,7 @@ import com.balabala.web.response.*;
 import com.google.common.collect.Lists;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -26,6 +27,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 
+@Slf4j
 @Api(tags = "教师", description = "教师账号相关接口")
 @RestController
 public class TeacherController {
@@ -86,7 +88,7 @@ public class TeacherController {
 
     @ApiOperation(value = "教师申请")
     @PostMapping(value = "/teachers/signup")
-    public ApiEntity signup(@Validated @RequestBody SignupTeacherRequest request) throws IOException {
+    public ApiEntity signup(@Validated @RequestBody SignupTeacherRequest request) {
         BalabalaTeacherExample example = new BalabalaTeacherExample();
         example.createCriteria()
                 .andPhoneNumberEqualTo(request.getPhoneNumber())
@@ -100,21 +102,29 @@ public class TeacherController {
         // 注册网易云IM账号
         ImUserCreateRequest imUserCreateRequest = new ImUserCreateRequest();
         imUserCreateRequest.setAccid("teacher_" + request.getPhoneNumber());
-        ImUserCreateResponse imUserCreateResponse = neteaseClient.execute(imUserCreateRequest);
-
-        if (imUserCreateResponse.isSuccess()) {
-            BalabalaTeacher teacher = new BalabalaTeacher();
-            teacher.setCampusId(request.getCampusId());
-            teacher.setFullName(request.getFullName());
-            teacher.setPhoneNumber(request.getPhoneNumber());
-            teacher.setMajor(request.getMajor());
-            teacher.setComeFrom(request.getFrom());
-            teacher.setStatus(TeacherStatus.IN_REVIEW);
-            teacher.setAccid(imUserCreateResponse.getInfo().getAccid());
-            teacher.setToken(imUserCreateResponse.getInfo().getToken());
-            teacherMapper.insertSelective(teacher);
+        ImUserCreateResponse imUserCreateResponse = null;
+        try {
+            imUserCreateResponse = neteaseClient.execute(imUserCreateRequest);
+        } catch (IOException e) {
+            log.error("controller:teachers:signup:调用网易云注册IM账号失败", e);
+            return new ApiEntity(ApiStatus.STATUS_500);
         }
 
+        if (!imUserCreateResponse.isSuccess()) {
+            log.error("controller:teachers:signup:调用网易云注册IM账号失败, code=" + imUserCreateResponse.getCode());
+            return new ApiEntity(ApiStatus.STATUS_500);
+        }
+
+        BalabalaTeacher teacher = new BalabalaTeacher();
+        teacher.setCampusId(request.getCampusId());
+        teacher.setFullName(request.getFullName());
+        teacher.setPhoneNumber(request.getPhoneNumber());
+        teacher.setMajor(request.getMajor());
+        teacher.setComeFrom(request.getFrom());
+        teacher.setStatus(TeacherStatus.IN_REVIEW);
+        teacher.setAccid(imUserCreateResponse.getInfo().getAccid());
+        teacher.setToken(imUserCreateResponse.getInfo().getToken());
+        teacherMapper.insertSelective(teacher);
         return new ApiEntity();
     }
 
