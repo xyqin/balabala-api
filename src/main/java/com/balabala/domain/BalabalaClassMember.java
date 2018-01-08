@@ -11,4 +11,6 @@ public class BalabalaClassMember extends AbstractEntity<Long> {
 
     private Long memberId;
 
+    private ClassStatus status;
+
 }

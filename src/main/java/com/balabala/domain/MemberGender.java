@@ -3,7 +3,7 @@ package com.balabala.domain;
 /**
  *
  */
-public enum BalabalaMemberGender {
+public enum MemberGender {
 
     MALE, FEMALE
 

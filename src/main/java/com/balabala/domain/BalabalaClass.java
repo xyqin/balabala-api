@@ -21,6 +21,6 @@ public class BalabalaClass extends AbstractEntity<Long> {
 
     private String monitorPhoneNumber;
 
-    private BalabalaClassStatus status;
+    private ClassStatus status;
 
 }

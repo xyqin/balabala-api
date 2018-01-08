@@ -1,13 +1,12 @@
 package com.balabala.web.request;
 
 import lombok.Data;
-
-import javax.validation.constraints.Min;
+import org.hibernate.validator.constraints.NotBlank;
 
 @Data
 public class GivePointsRequest {
 
-    @Min(1)
-    private int points;
+    @NotBlank
+    private String expression;
 
 }

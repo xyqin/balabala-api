@@ -3,7 +3,7 @@ package com.balabala.domain;
 /**
  *
  */
-public enum BalabalaTeacherStatus {
+public enum TeacherStatus {
 
     IN_REVIEW, REJECTED, ENABLED, DISABLED
 

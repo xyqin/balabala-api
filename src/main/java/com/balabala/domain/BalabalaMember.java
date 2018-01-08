@@ -15,7 +15,7 @@ public class BalabalaMember extends AbstractEntity<Long> {
 
     private String englishName;
 
-    private BalabalaMemberGender gender;
+    private MemberGender gender;
 
     private String birthday;
 

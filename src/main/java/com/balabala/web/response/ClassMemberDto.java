@@ -11,6 +11,8 @@ public class ClassMemberDto {
 
     private String avatar;
 
+    private String phoneNumber;
+
     private String accid;
 
 }

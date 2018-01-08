@@ -6,9 +6,7 @@ import com.balabala.netease.NeteaseClient;
 import com.balabala.netease.request.ImUserCreateRequest;
 import com.balabala.netease.response.ImUserCreateResponse;
 import com.balabala.repository.*;
-import com.balabala.repository.example.BalabalaClassMemberExample;
-import com.balabala.repository.example.BalabalaMemberLessonExample;
-import com.balabala.repository.example.BalabalaMemberPassportExample;
+import com.balabala.repository.example.*;
 import com.balabala.web.request.*;
 import com.balabala.web.response.*;
 import com.google.common.collect.Lists;
@@ -18,6 +16,7 @@ import io.swagger.annotations.ApiParam;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.time.DateFormatUtils;
 import org.apache.commons.lang3.time.DateUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
@@ -52,16 +51,31 @@ public class MemberController {
     private BalabalaMemberHomeworkMapper memberHomeworkMapper;
 
     @Autowired
+    private BalabalaMemberHomeworkItemMapper memberHomeworkItemMapper;
+
+    @Autowired
+    private BalabalaMemberCommentMapper memberCommentMapper;
+
+    @Autowired
+    private BalabalaMemberPointLogMapper memberPointLogMapper;
+
+    @Autowired
     private BalabalaClassLessonMapper lessonMapper;
 
     @Autowired
     private BalabalaTeacherMapper teacherMapper;
 
     @Autowired
+    private BalabalaClassMapper classMapper;
+
+    @Autowired
     private BalabalaClassMemberMapper classMemberMapper;
 
     @Autowired
     private BalabalaCampusMapper campusMapper;
+
+    @Autowired
+    private BalabalaTextbookMapper textbookMapper;
 
     @Autowired
     private NeteaseClient neteaseClient;
@@ -75,7 +89,7 @@ public class MemberController {
 
         BalabalaMemberPassportExample example = new BalabalaMemberPassportExample();
         example.createCriteria()
-                .andProviderEqualTo(BalabalaMemberPassportProvider.PHONE.name())
+                .andProviderEqualTo(MemberPassportProvider.PHONE.name())
                 .andProviderIdEqualTo(request.getPhoneNumber())
                 .andDeletedEqualTo(Boolean.FALSE);
         List<BalabalaMemberPassport> passports = memberPassportMapper.selectByExample(example);
@@ -98,7 +112,7 @@ public class MemberController {
 
             BalabalaMemberPassport passport = new BalabalaMemberPassport();
             passport.setMemberId(member.getId());
-            passport.setProvider(BalabalaMemberPassportProvider.PHONE);
+            passport.setProvider(MemberPassportProvider.PHONE);
             passport.setProviderId(request.getPhoneNumber());
             passport.setPassword(DigestUtils.md5Hex(request.getPassword()));
             memberPassportMapper.insertSelective(passport);
@@ -115,7 +129,7 @@ public class MemberController {
     public ApiEntity<SigninResponse> signin(@Validated @RequestBody SigninRequest request) {
         BalabalaMemberPassportExample example = new BalabalaMemberPassportExample();
         example.createCriteria()
-                .andProviderEqualTo(BalabalaMemberPassportProvider.PHONE.name())
+                .andProviderEqualTo(MemberPassportProvider.PHONE.name())
                 .andProviderIdEqualTo(request.getPhoneNumber())
                 .andDeletedEqualTo(Boolean.FALSE);
         List<BalabalaMemberPassport> passports = memberPassportMapper.selectByExample(example);
@@ -159,7 +173,7 @@ public class MemberController {
         BalabalaMemberPassportExample example = new BalabalaMemberPassportExample();
         example.createCriteria()
                 .andMemberIdEqualTo(memberId)
-                .andProviderEqualTo(BalabalaMemberPassportProvider.WECHAT.name())
+                .andProviderEqualTo(MemberPassportProvider.WECHAT.name())
                 .andDeletedEqualTo(Boolean.FALSE);
         List<BalabalaMemberPassport> passports = memberPassportMapper.selectByExample(example);
 
@@ -190,7 +204,7 @@ public class MemberController {
         memberToBeUpdated.setNickname(request.getNickname());
         memberToBeUpdated.setAvatar(request.getAvatar());
         memberToBeUpdated.setEnglishName(request.getEnglishName());
-        memberToBeUpdated.setGender(BalabalaMemberGender.valueOf(request.getGender()));
+        memberToBeUpdated.setGender(MemberGender.valueOf(request.getGender()));
 
         // 更新会员信息
         memberMapper.updateByPrimaryKeySelective(memberToBeUpdated);
@@ -301,46 +315,274 @@ public class MemberController {
     public ApiEntity<List<HomeworkDto>> getHomeworks(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size) {
-        return new ApiEntity<>();
+        if (!authenticator.authenticate()) {
+            return new ApiEntity(ApiStatus.STATUS_401);
+        }
+
+        Long memberId = authenticator.getCurrentMemberId();
+        BalabalaMemberHomeworkExample example = new BalabalaMemberHomeworkExample();
+        example.createCriteria().andMemberIdEqualTo(memberId).andDeletedEqualTo(Boolean.FALSE);
+        example.setStartRow((page - 1) * size);
+        example.setPageSize(size);
+        example.setOrderByClause("created_at DESC");
+        List<BalabalaMemberHomework> homeworks = memberHomeworkMapper.selectByExample(example);
+        List<HomeworkDto> response = Lists.newArrayList();
+
+        for (BalabalaMemberHomework homework : homeworks) {
+            HomeworkDto dto = new HomeworkDto();
+            dto.setId(homework.getId());
+            dto.setName(homework.getHomeworkName());
+            dto.setStatus(homework.getStatus().name());
+            dto.setClosingAt(homework.getClosingAt());
+
+            BalabalaTeacher teacher = teacherMapper.selectByPrimaryKey(homework.getTeacherId());
+            dto.setTeacher(teacher.getFullName());
+            response.add(dto);
+        }
+
+        return new ApiEntity<>(response);
     }
 
     @ApiOperation(value = "获取我的作业题目列表")
     @GetMapping(value = "/members/homeworks/{id}/items")
-    public ApiEntity<List<HomeworkItemDto>> getHomeworkItems() {
-        return new ApiEntity<>();
+    public ApiEntity<List<HomeworkItemDto>> getHomeworkItems(@PathVariable Long id) {
+        if (!authenticator.authenticate()) {
+            return new ApiEntity(ApiStatus.STATUS_401);
+        }
+
+        Long memberId = authenticator.getCurrentMemberId();
+        BalabalaMemberHomeworkItemExample example = new BalabalaMemberHomeworkItemExample();
+        example.createCriteria().
+                andMemberIdEqualTo(memberId)
+                .andHomeworkIdEqualTo(id)
+                .andDeletedEqualTo(Boolean.FALSE);
+        List<BalabalaMemberHomeworkItem> items = memberHomeworkItemMapper.selectByExample(example);
+        List<HomeworkItemDto> response = Lists.newArrayList();
+
+        for (BalabalaMemberHomeworkItem item : items) {
+            BalabalaTextbook textbook = textbookMapper.selectByPrimaryKey(item.getTextbookId());
+
+            HomeworkItemDto dto = new HomeworkItemDto();
+            dto.setId(item.getId());
+            dto.setName(textbook.getTextbookName());
+            dto.setType(textbook.getType().name());
+            dto.setQuestion(textbook.getQuestion());
+            dto.setCorrect(textbook.getCorrect());
+            dto.setImage(textbook.getImage());
+            response.add(dto);
+        }
+
+        return new ApiEntity<>(response);
     }
 
     @ApiOperation(value = "提交作业")
     @PostMapping(value = "/members/homeworks/{id}/items")
-    public ApiEntity submitHomework(@RequestBody SubmitHomeworkRequest request) {
+    public ApiEntity submitHomework(
+            @PathVariable Long id,
+            @Validated @RequestBody SubmitHomeworkRequest request) {
+        if (!authenticator.authenticate()) {
+            return new ApiEntity(ApiStatus.STATUS_401);
+        }
+
+        for (HomeworkItemDto item : request.getItems()) {
+            BalabalaMemberHomeworkItem itemToBeUpdated = new BalabalaMemberHomeworkItem();
+            itemToBeUpdated.setId(item.getId());
+            itemToBeUpdated.setAnswer(item.getAnswer());
+            memberHomeworkItemMapper.updateByPrimaryKeySelective(itemToBeUpdated);
+        }
+
+        BalabalaMemberHomework homeworkToBeUpdated = new BalabalaMemberHomework();
+        homeworkToBeUpdated.setId(id);
+        homeworkToBeUpdated.setStatus(HomeworkStatus.FINISHED);
+        memberHomeworkMapper.updateByPrimaryKeySelective(homeworkToBeUpdated);
         return new ApiEntity();
     }
 
     @ApiOperation(value = "获取我的班级信息")
     @GetMapping(value = "/members/classes")
     public ApiEntity<GetMemberClassResponse> getMemberClass() {
-        return new ApiEntity<>();
+        if (!authenticator.authenticate()) {
+            return new ApiEntity(ApiStatus.STATUS_401);
+        }
+
+        Long memberId = authenticator.getCurrentMemberId();
+        BalabalaClassMemberExample example = new BalabalaClassMemberExample();
+        example.createCriteria()
+                .andMemberIdEqualTo(memberId)
+                .andStatusEqualTo(ClassStatus.ONGOING.name())
+                .andDeletedEqualTo(Boolean.FALSE);
+        List<BalabalaClassMember> classes = classMemberMapper.selectByExample(example);
+
+        GetMemberClassResponse response = null;
+
+        if (CollectionUtils.isNotEmpty(classes)) {
+            BalabalaClass aClass = classMapper.selectByPrimaryKey(classes.get(0).getClassId());
+            BalabalaTeacher teacher = teacherMapper.selectByPrimaryKey(aClass.getTeacherId());
+            BalabalaTeacher englishTeacher = teacherMapper.selectByPrimaryKey(aClass.getEnglishTeacherId());
+            response = new GetMemberClassResponse();
+            response.setId(aClass.getId());
+            response.setClassName(aClass.getClassName());
+            response.setMonitor(aClass.getMonitor());
+            response.setMonitorPhoneNumber(aClass.getMonitorPhoneNumber());
+            response.setTeacher(teacher.getFullName());
+            response.setEnglishTeacher(englishTeacher.getFullName());
+
+            BalabalaClassMemberExample classMemberExample = new BalabalaClassMemberExample();
+            classMemberExample.createCriteria()
+                    .andClassIdEqualTo(aClass.getId())
+                    .andDeletedEqualTo(Boolean.FALSE);
+            List<BalabalaClassMember> classMembers = classMemberMapper.selectByExample(classMemberExample);
+
+            for (BalabalaClassMember classMember : classMembers) {
+                BalabalaMember member = memberMapper.selectByPrimaryKey(classMember.getMemberId());
+                BalabalaMemberPassportExample passportExample = new BalabalaMemberPassportExample();
+                passportExample.createCriteria()
+                        .andMemberIdEqualTo(classMember.getMemberId())
+                        .andProviderEqualTo(MemberPassportProvider.PHONE.name())
+                        .andDeletedEqualTo(Boolean.FALSE);
+                List<BalabalaMemberPassport> passports = memberPassportMapper.selectByExample(passportExample);
+
+                ClassMemberDto dto = new ClassMemberDto();
+                dto.setId(member.getId());
+                dto.setNickname(member.getNickname());
+                dto.setAvatar(member.getAvatar());
+
+                if (CollectionUtils.isNotEmpty(passports)) {
+                    dto.setPhoneNumber(passports.get(0).getProviderId());
+                }
+                response.getMembers().add(dto);
+            }
+        }
+
+        return new ApiEntity<>(response);
     }
 
     @ApiOperation(value = "获取我的授课列表")
     @GetMapping(value = "/members/lessons")
     public ApiEntity<List<LessonDto>> getLessons(
-            @ApiParam(value = "课时类型（online线上，offline线下）") @RequestParam(defaultValue = "online") String type) {
-        if ("offline".equals(type)) {
-
-        } else {
-
+            @ApiParam(value = "课时类型（online线上，offline线下）") @RequestParam(defaultValue = "online") String type,
+            @RequestParam int page,
+            @RequestParam int size) {
+        if (!authenticator.authenticate()) {
+            return new ApiEntity(ApiStatus.STATUS_401);
         }
 
-        return new ApiEntity<>();
+        Long memberId = authenticator.getCurrentMemberId();
+        LessonType typeEnum = null;
+        try {
+            typeEnum = LessonType.valueOf(type.toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            return new ApiEntity<>(ApiStatus.STATUS_400.getCode(), "授课类型值不合法, type=" + type);
+        }
+
+        BalabalaMemberLessonExample example = new BalabalaMemberLessonExample();
+        example.createCriteria()
+                .andMemberIdEqualTo(memberId)
+                .andTypeEqualTo(typeEnum.name()).andDeletedEqualTo(Boolean.FALSE)
+                .andStartAtGreaterThan(new Date())
+                .andDeletedEqualTo(Boolean.FALSE);
+        example.setStartRow((page - 1) * size);
+        example.setPageSize(size);
+        example.setOrderByClause("start_at ASC");
+        List<BalabalaMemberLesson> lessons = memberLessonMapper.selectByExample(example);
+        List<LessonDto> response = Lists.newArrayList();
+
+        for (BalabalaMemberLesson memberLesson : lessons) {
+            BalabalaClassLesson lesson = lessonMapper.selectByPrimaryKey(memberLesson.getLessonId());
+            LessonDto dto = new LessonDto();
+            dto.setId(lesson.getId());
+            dto.setName(lesson.getLessonName());
+            dto.setThumbnail(lesson.getThumbnail());
+            dto.setDuration((int) ((lesson.getEndAt().getTime() - lesson.getStartAt().getTime()) / 1000 / 60));
+
+            if (Objects.equals(DateFormatUtils.format(new Date(), "yyyyMMdd"),
+                    DateFormatUtils.format(lesson.getStartAt(), "yyyyMMdd"))) {
+                dto.setStatus("SOON");
+            } else {
+                dto.setStatus("PENDING");
+            }
+
+            response.add(dto);
+        }
+
+        return new ApiEntity<>(response);
+    }
+
+    @ApiOperation(value = "获取我的授课历史列表")
+    @GetMapping(value = "/members/lessons/history")
+    public ApiEntity<List<LessonDto>> getLessonsHistory(
+            @ApiParam(value = "课时类型（online线上，offline线下）") @RequestParam(defaultValue = "online") String type,
+            @RequestParam int page,
+            @RequestParam int size) {
+        if (!authenticator.authenticate()) {
+            return new ApiEntity(ApiStatus.STATUS_401);
+        }
+
+        Long memberId = authenticator.getCurrentMemberId();
+        LessonType typeEnum = null;
+        try {
+            typeEnum = LessonType.valueOf(type.toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            return new ApiEntity<>(ApiStatus.STATUS_400.getCode(), "授课类型值不合法, type=" + type);
+        }
+
+        BalabalaMemberLessonExample example = new BalabalaMemberLessonExample();
+        example.createCriteria()
+                .andMemberIdEqualTo(memberId)
+                .andTypeEqualTo(typeEnum.name()).andDeletedEqualTo(Boolean.FALSE)
+                .andEndAtLessThan(new Date())
+                .andDeletedEqualTo(Boolean.FALSE);
+        example.setStartRow((page - 1) * size);
+        example.setPageSize(size);
+        example.setOrderByClause("end_at DESC");
+        List<BalabalaMemberLesson> lessons = memberLessonMapper.selectByExample(example);
+        List<LessonDto> response = Lists.newArrayList();
+
+        for (BalabalaMemberLesson memberLesson : lessons) {
+            BalabalaClassLesson lesson = lessonMapper.selectByPrimaryKey(memberLesson.getLessonId());
+            LessonDto dto = new LessonDto();
+            dto.setId(lesson.getId());
+            dto.setName(lesson.getLessonName());
+            dto.setThumbnail(lesson.getThumbnail());
+            dto.setDuration((int) ((lesson.getEndAt().getTime() - lesson.getStartAt().getTime()) / 1000 / 60));
+            response.add(dto);
+        }
+
+        return new ApiEntity<>(response);
     }
 
     @ApiOperation(value = "获取我的评语列表")
-    @GetMapping(value = "/members/lessons")
+    @GetMapping(value = "/members/comments")
     public ApiEntity<List<CommentDto>> getComments(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size) {
-        return new ApiEntity<>();
+        if (!authenticator.authenticate()) {
+            return new ApiEntity(ApiStatus.STATUS_401);
+        }
+
+        Long memberId = authenticator.getCurrentMemberId();
+        BalabalaMemberCommentExample example = new BalabalaMemberCommentExample();
+        example.createCriteria()
+                .andMemberIdEqualTo(memberId)
+                .andDeletedEqualTo(Boolean.FALSE);
+        example.setStartRow((page - 1) * size);
+        example.setPageSize(size);
+        example.setOrderByClause("created_at DESC");
+        List<BalabalaMemberComment> comments = memberCommentMapper.selectByExample(example);
+        List<CommentDto> response = Lists.newArrayList();
+
+        for (BalabalaMemberComment comment : comments) {
+            CommentDto dto = new CommentDto();
+            dto.setId(comment.getId());
+            dto.setContent(comment.getContent());
+            dto.setCreatedAt(comment.getCreatedAt());
+
+            BalabalaTeacher teacher = teacherMapper.selectByPrimaryKey(comment.getTeacherId());
+            dto.setTeacher(teacher.getFullName());
+            response.add(dto);
+        }
+
+        return new ApiEntity<>(response);
     }
 
     @ApiOperation(value = "获取我的积分日志列表")
@@ -348,7 +590,29 @@ public class MemberController {
     public ApiEntity<List<PointLogDto>> getPointLogs(
             @RequestParam int page,
             @RequestParam int size) {
-        return new ApiEntity<>();
+        if (!authenticator.authenticate()) {
+            return new ApiEntity(ApiStatus.STATUS_401);
+        }
+
+        Long memberId = authenticator.getCurrentMemberId();
+        BalabalaMemberPointLogExample example = new BalabalaMemberPointLogExample();
+        example.createCriteria().andMemberIdEqualTo(memberId).andDeletedEqualTo(Boolean.FALSE);
+        example.setStartRow((page - 1) * size);
+        example.setPageSize(size);
+        example.setOrderByClause("created_at DESC");
+        List<BalabalaMemberPointLog> logs = memberPointLogMapper.selectByExample(example);
+        List<PointLogDto> response = Lists.newArrayList();
+
+        for (BalabalaMemberPointLog pointLog : logs) {
+            PointLogDto dto = new PointLogDto();
+            dto.setId(pointLog.getId());
+            dto.setPoints(pointLog.getPoints());
+            dto.setType(pointLog.getType().name());
+            dto.setCreatedAt(pointLog.getCreatedAt());
+            response.add(dto);
+        }
+
+        return new ApiEntity<>(response);
     }
 
 }

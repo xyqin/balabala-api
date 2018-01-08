@@ -15,4 +15,6 @@ public class LessonDto {
 
     private boolean prepared;
 
+    private String status;
+
 }

@@ -27,6 +27,6 @@ public class BalabalaTeacher extends AbstractEntity<Long> {
 
     private String token;
 
-    private BalabalaTeacherStatus status;
+    private TeacherStatus status;
 
 }

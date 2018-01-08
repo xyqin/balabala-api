@@ -19,4 +19,8 @@ public class BalabalaMemberLesson extends AbstractEntity<Long> {
 
     private Date endAt;
 
+    private LessonType type;
+
+    private Boolean probational;
+
 }

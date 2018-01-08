@@ -31,4 +31,6 @@ public class NewLessonResponse {
 
     private List<ClassMemberDto> members = Lists.newArrayList();
 
+    private List<ClassMemberDto> probationalMembers = Lists.newArrayList();
+
 }

@@ -33,4 +33,6 @@ public class BalabalaClassLesson extends AbstractEntity<Long> {
 
     private Boolean prepared;
 
+    private LessonType type;
+
 }

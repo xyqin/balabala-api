@@ -1,6 +1,6 @@
 package com.balabala.domain;
 
-public enum BalabalaMemberPassportProvider {
+public enum MemberPassportProvider {
 
     PHONE, WECHAT
 

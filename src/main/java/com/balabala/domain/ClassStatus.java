@@ -3,7 +3,7 @@ package com.balabala.domain;
 /**
  *
  */
-public enum BalabalaClassStatus {
+public enum ClassStatus {
 
     IN_REVIEW, REJECTED, ONGOING, FINISHED
 

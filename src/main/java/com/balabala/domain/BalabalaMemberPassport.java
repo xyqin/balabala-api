@@ -9,7 +9,7 @@ public class BalabalaMemberPassport extends AbstractEntity<Long> {
 
     private Long memberId;
 
-    private BalabalaMemberPassportProvider provider;
+    private MemberPassportProvider provider;
 
     private String providerId;
 
