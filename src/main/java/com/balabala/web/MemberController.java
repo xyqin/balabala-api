@@ -587,6 +587,7 @@ public class MemberController {
 
             HomeworkItemDto dto = new HomeworkItemDto();
             dto.setId(item.getId());
+            dto.setTextbookId(textbook.getId());
             dto.setName(textbook.getTextbookName());
             dto.setType(textbook.getType().name());
             dto.setQuestion(textbook.getQuestion());

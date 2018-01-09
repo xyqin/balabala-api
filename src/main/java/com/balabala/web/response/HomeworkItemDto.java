@@ -7,6 +7,8 @@ public class HomeworkItemDto {
 
     private Long id;
 
+    private Long textbookId;
+
     private String type;
 
     private String name;
