@@ -3,11 +3,13 @@ package com.balabala.web.response;
 import lombok.Data;
 
 @Data
-public class TextbookDto {
+public class GetTextbookResponse {
 
     private Long id;
 
     private String name;
+
+    private String type;
 
     private String question;
 

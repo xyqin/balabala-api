@@ -3,20 +3,14 @@ package com.balabala.web.response;
 import lombok.Data;
 
 @Data
-public class TextbookDto {
+public class PositionContentDto {
 
     private Long id;
 
     private String name;
 
-    private String question;
-
-    private String option;
-
-    private String correct;
-
     private String image;
 
-    private String video;
+    private String link;
 
 }

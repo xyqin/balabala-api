@@ -22,6 +22,9 @@
         <mapper resource="com/balabala/mapper/BalabalaMemberHomeworkMapper.xml"/>
         <mapper resource="com/balabala/mapper/BalabalaMemberLessonMapper.xml"/>
         <mapper resource="com/balabala/mapper/BalabalaMemberPassportMapper.xml"/>
+        <mapper resource="com/balabala/mapper/BalabalaMemberPointLogMapper.xml"/>
+        <mapper resource="com/balabala/mapper/BalabalaPositionMapper.xml"/>
+        <mapper resource="com/balabala/mapper/BalabalaPositionContentMapper.xml"/>
         <mapper resource="com/balabala/mapper/BalabalaRegionMapper.xml"/>
         <mapper resource="com/balabala/mapper/BalabalaTeacherMapper.xml"/>
         <mapper resource="com/balabala/mapper/BalabalaTeacherHomeworkItemMapper.xml"/>

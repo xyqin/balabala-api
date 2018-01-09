@@ -87,6 +87,9 @@ public class MemberController {
     private BalabalaTextbookMapper textbookMapper;
 
     @Autowired
+    private BalabalaPositionContentMapper positionContentMapper;
+
+    @Autowired
     private NeteaseClient neteaseClient;
 
     @Autowired
@@ -394,6 +397,58 @@ public class MemberController {
     public ApiEntity signout() {
         authenticator.invalidateSession();
         return new ApiEntity();
+    }
+
+    @ApiOperation(value = "获取会员首页信息")
+    @GetMapping(value = "/members/home")
+    public ApiEntity<GetMemberHomeResponse> getMemberHome() {
+        GetMemberHomeResponse response = new GetMemberHomeResponse();
+
+        Date now = new Date();
+        BalabalaPositionContentExample example = new BalabalaPositionContentExample();
+        example.createCriteria()
+                .andPositionIdEqualTo(1L)
+                .andStartAtLessThan(now)
+                .andEndAtGreaterThan(now)
+                .andDeletedEqualTo(Boolean.FALSE);
+        example.setOrderByClause("position DESC");
+        List<BalabalaPositionContent> contents = positionContentMapper.selectByExample(example);
+
+        for (BalabalaPositionContent content : contents) {
+            PositionContentDto dto = new PositionContentDto();
+            dto.setId(content.getId());
+            dto.setName(content.getContentName());
+            dto.setImage(content.getImage());
+            dto.setLink(content.getLink());
+            response.getContents().add(dto);
+        }
+
+        Long memberId = authenticator.getCurrentMemberId();
+
+        if (Objects.nonNull(memberId)) {
+            BalabalaMemberLessonExample memberLessonExample = new BalabalaMemberLessonExample();
+            memberLessonExample.createCriteria()
+                    .andMemberIdEqualTo(memberId)
+                    .andTypeEqualTo(LessonType.OFFLINE.name()).andDeletedEqualTo(Boolean.FALSE)
+                    .andEndAtLessThan(new Date())
+                    .andDeletedEqualTo(Boolean.FALSE);
+            memberLessonExample.setStartRow(0);
+            memberLessonExample.setPageSize(2);
+            memberLessonExample.setOrderByClause("end_at DESC");
+            List<BalabalaMemberLesson> lessons = memberLessonMapper.selectByExample(memberLessonExample);
+
+            for (BalabalaMemberLesson memberLesson : lessons) {
+                BalabalaClassLesson lesson = lessonMapper.selectByPrimaryKey(memberLesson.getLessonId());
+                LessonDto dto = new LessonDto();
+                dto.setId(lesson.getId());
+                dto.setName(lesson.getLessonName());
+                dto.setThumbnail(lesson.getThumbnail());
+                dto.setDuration((int) ((lesson.getEndAt().getTime() - lesson.getStartAt().getTime()) / 1000 / 60));
+                response.getLessons().add(dto);
+            }
+        }
+
+        return new ApiEntity<>(response);
     }
 
     @ApiOperation(value = "进入直播课堂")

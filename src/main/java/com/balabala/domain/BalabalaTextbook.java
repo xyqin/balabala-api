@@ -15,8 +15,12 @@ public class BalabalaTextbook extends AbstractEntity<Long> {
 
     private String question;
 
+    private String option;
+
     private String correct;
 
     private String image;
+
+    private String video;
 
 }

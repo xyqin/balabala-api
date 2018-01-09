@@ -7,6 +7,7 @@ import com.balabala.repository.BalabalaTextbookCategoryMapper;
 import com.balabala.repository.BalabalaTextbookMapper;
 import com.balabala.repository.example.BalabalaTextbookCategoryExample;
 import com.balabala.repository.example.BalabalaTextbookExample;
+import com.balabala.web.response.GetTextbookResponse;
 import com.balabala.web.response.GetTextbooksResponse;
 import com.balabala.web.response.TextbookCategoryDto;
 import com.balabala.web.response.TextbookDto;
@@ -16,10 +17,12 @@ import io.swagger.annotations.ApiOperation;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Objects;
 
 @Slf4j
 @Api(tags = "教材", description = "教材")
@@ -55,7 +58,7 @@ public class TextbookController {
 
     @ApiOperation(value = "根据分类id获取教材题目列表")
     @GetMapping(value = "/textbooks")
-    public ApiEntity<GetTextbooksResponse> getTextBooks(@RequestParam Long categoryId) {
+    public ApiEntity<GetTextbooksResponse> getTextbooks(@RequestParam Long categoryId) {
         BalabalaTextbookExample example = new BalabalaTextbookExample();
         example.createCriteria()
                 .andCategoryIdEqualTo(categoryId)
@@ -87,6 +90,27 @@ public class TextbookController {
             }
         }
 
+        return new ApiEntity<>(response);
+    }
+
+    @ApiOperation(value = "获取教材题目详情")
+    @GetMapping(value = "/textbooks/{id}")
+    public ApiEntity<GetTextbookResponse> getTextbook(@PathVariable Long id) {
+        BalabalaTextbook textbook = textbookMapper.selectByPrimaryKey(id);
+
+        if (Objects.isNull(textbook)) {
+            return new ApiEntity<>(ApiStatus.STATUS_404);
+        }
+
+        GetTextbookResponse response = new GetTextbookResponse();
+        response.setId(textbook.getId());
+        response.setName(textbook.getTextbookName());
+        response.setType(textbook.getType().name());
+        response.setQuestion(textbook.getQuestion());
+        response.setOption(textbook.getOption());
+        response.setCorrect(textbook.getCorrect());
+        response.setImage(textbook.getImage());
+        response.setVideo(textbook.getVideo());
         return new ApiEntity<>(response);
     }
 

@@ -1,20 +1,11 @@
 package com.balabala.web;
 
-import com.balabala.domain.BalabalaCampus;
-import com.balabala.domain.BalabalaCourse;
-import com.balabala.domain.BalabalaCourseCategory;
-import com.balabala.domain.BalabalaRegion;
+import com.balabala.domain.*;
 import com.balabala.netease.NeteaseClient;
 import com.balabala.netease.request.SmsSendCodeRequest;
 import com.balabala.netease.response.SmsSendCodeResponse;
-import com.balabala.repository.BalabalaCampusMapper;
-import com.balabala.repository.BalabalaCourseCategoryMapper;
-import com.balabala.repository.BalabalaCourseMapper;
-import com.balabala.repository.BalabalaRegionMapper;
-import com.balabala.repository.example.BalabalaCampusExample;
-import com.balabala.repository.example.BalabalaCourseCategoryExample;
-import com.balabala.repository.example.BalabalaCourseExample;
-import com.balabala.repository.example.BalabalaRegionExample;
+import com.balabala.repository.*;
+import com.balabala.repository.example.*;
 import com.balabala.web.exception.InternalServerErrorException;
 import com.balabala.web.response.*;
 import com.google.common.collect.Lists;
@@ -28,10 +19,7 @@ import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.time.DateFormatUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.Part;
 import java.io.File;
@@ -68,6 +56,9 @@ public class CommonController {
 
     @Autowired
     private BalabalaCourseCategoryMapper courseCategoryMapper;
+
+    @Autowired
+    private BalabalaPositionContentMapper positionContentMapper;
 
     @Autowired
     private NeteaseClient neteaseClient;
@@ -230,6 +221,32 @@ public class CommonController {
         String link = imageLink + "/video/" + currentDate + "/" + filename;
         UploadResponse response = new UploadResponse();
         response.setLink(link);
+        return new ApiEntity<>(response);
+    }
+
+    @ApiOperation(value = "获取地区列表")
+    @GetMapping(value = "/positions/{id}/contents")
+    public ApiEntity<List<PositionContentDto>> getPositionContents(@PathVariable Long id) {
+        Date now = new Date();
+        BalabalaPositionContentExample example = new BalabalaPositionContentExample();
+        example.createCriteria()
+                .andPositionIdEqualTo(id)
+                .andStartAtLessThan(now)
+                .andEndAtGreaterThan(now)
+                .andDeletedEqualTo(Boolean.FALSE);
+        example.setOrderByClause("position DESC");
+        List<BalabalaPositionContent> contents = positionContentMapper.selectByExample(example);
+        List<PositionContentDto> response = Lists.newArrayList();
+
+        for (BalabalaPositionContent content : contents) {
+            PositionContentDto dto = new PositionContentDto();
+            dto.setId(content.getId());
+            dto.setName(content.getContentName());
+            dto.setImage(content.getImage());
+            dto.setLink(content.getLink());
+            response.add(dto);
+        }
+
         return new ApiEntity<>(response);
     }
 

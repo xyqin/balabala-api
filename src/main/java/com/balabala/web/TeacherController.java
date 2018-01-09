@@ -283,8 +283,10 @@ public class TeacherController {
             dto.setId(textbook.getId());
             dto.setName(textbook.getTextbookName());
             dto.setQuestion(textbook.getQuestion());
+            dto.setOption(textbook.getOption());
             dto.setCorrect(textbook.getCorrect());
             dto.setImage(textbook.getImage());
+            dto.setVideo(textbook.getVideo());
 
             if (TextbookType.CHOICE.equals(textbook.getType())) {
                 response.getChoices().add(dto);
@@ -703,6 +705,7 @@ public class TeacherController {
         memberLesson.setLessonId(lesson.getId());
         memberLesson.setStartAt(lesson.getStartAt());
         memberLesson.setEndAt(lesson.getEndAt());
+        memberLesson.setProbational(Boolean.TRUE);
         memberLessonMapper.insertSelective(memberLesson);
 
         BalabalaMemberLessonExample memberLessonExample = new BalabalaMemberLessonExample();
