@@ -12,8 +12,4 @@ public class WechatProperties {
 
     private String appSecret;
 
-    private String merchantId;
-
-    private String apiKey;
-
 }

@@ -253,7 +253,11 @@ public class TeacherController {
 
     @ApiOperation(value = "获取课时的题目列表")
     @GetMapping(value = "/teachers/lessons/{id}/textbooks")
-    public ApiEntity<GetTextbooksResponse> getLessonTextbooks(@RequestParam Long id) {
+    public ApiEntity<GetTextbooksResponse> getLessonTextbooks(@PathVariable Long id) {
+        if (!authenticator.authenticateForTeacher()) {
+            return new ApiEntity(ApiStatus.STATUS_401);
+        }
+
         Long teacherId = authenticator.getCurrentTeacherId();
         BalabalaClassLessonExample example = new BalabalaClassLessonExample();
         example.createCriteria()

@@ -28,5 +28,13 @@ netease:
   app-key: 2dc284c2f3302d1bf2a364a51c957a99
   app-secret: 1076df64c067
 
+wechat:
+  app:
+    app-id: wx2630165be5d34c92
+    app-secret: f8459ed58765fa08fc1a1b44262f25fb
+  web:
+    app-id: wx6b0ef6fa3aac1cd1
+    app-secret: e05b4e291503c6bd43b183bfaa1de0bb
+
 debug:
   enabled: true

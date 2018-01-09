@@ -1,19 +1,23 @@
 package com.balabala.web.request;
 
 import lombok.Data;
+import org.hibernate.validator.constraints.NotBlank;
 
 import javax.validation.constraints.NotNull;
 
 @Data
-public class ResetPasswordRequest {
+public class BindPhoneRequest {
 
-    @NotNull
+    @NotBlank
     private String phoneNumber;
 
-    @NotNull
+    @NotBlank
     private String code;
 
-    @NotNull
+    @NotBlank
     private String password;
+
+    @NotNull
+    private Long campusId;
 
 }

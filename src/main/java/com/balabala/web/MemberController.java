@@ -11,6 +11,11 @@ import com.balabala.repository.*;
 import com.balabala.repository.example.*;
 import com.balabala.web.request.*;
 import com.balabala.web.response.*;
+import com.balabala.wechat.mp.WxMpClient;
+import com.balabala.wechat.mp.request.SnsTokenRequest;
+import com.balabala.wechat.mp.request.SnsUserInfoRequest;
+import com.balabala.wechat.mp.response.SnsTokenResponse;
+import com.balabala.wechat.mp.response.SnsUserInfoResponse;
 import com.google.common.collect.Lists;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -21,6 +26,7 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.time.DateUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -82,6 +88,10 @@ public class MemberController {
 
     @Autowired
     private NeteaseClient neteaseClient;
+
+    @Autowired
+    @Qualifier("wechatAppClient")
+    private WxMpClient wxMpClient;
 
     /* 会员信息及账号相关接口 */
 
@@ -181,9 +191,150 @@ public class MemberController {
         return new ApiEntity(response);
     }
 
+    @ApiOperation(value = "微信授权登录")
+    @PostMapping(value = "/members/signin/wechat")
+    public ApiEntity<SigninResponse> signinByWechat(@Validated @RequestBody SigninWechatRequest body) throws Exception {
+        SnsTokenRequest tokenRequest = new SnsTokenRequest();
+        tokenRequest.setCode(body.getCode());
+        SnsTokenResponse tokenResponse = wxMpClient.execute(tokenRequest);
+
+        if (!tokenResponse.isSuccess()) {
+            log.error("controller:members:signin:wechat:调用微信公众号获取sns token失败, code={}, msg={}",
+                    tokenResponse.getErrcode(), tokenResponse.getErrmsg());
+            return new ApiEntity<>(ApiStatus.STATUS_500);
+        }
+
+        SnsUserInfoRequest userInfoRequest = new SnsUserInfoRequest();
+        userInfoRequest.setAccessToken(tokenResponse.getAccessToken());
+        userInfoRequest.setOpenid(tokenResponse.getOpenid());
+        SnsUserInfoResponse userInfoResponse = wxMpClient.execute(userInfoRequest);
+
+        if (!userInfoResponse.isSuccess()) {
+            log.error("controller:members:signin:wechat:调用微信公众号获取sns用户信息异常, code={}, msg={}",
+                    userInfoResponse.getErrcode(), userInfoResponse.getErrmsg());
+            return new ApiEntity<>(ApiStatus.STATUS_500);
+        }
+
+        BalabalaMember memberToBeSave = new BalabalaMember();
+        memberToBeSave.setNickname(userInfoResponse.getNickname());
+        memberToBeSave.setAvatar(userInfoResponse.getHeadimgurl());
+
+        if (userInfoResponse.getSex() == 1) {
+            memberToBeSave.setGender(MemberGender.MALE);
+        } else if (userInfoResponse.getSex() == 2) {
+            memberToBeSave.setGender(MemberGender.FEMALE);
+        } else {
+            memberToBeSave.setGender(MemberGender.MALE);
+        }
+
+        // 查找微信账号
+        BalabalaMemberPassportExample example = new BalabalaMemberPassportExample();
+        example.createCriteria()
+                .andProviderEqualTo(MemberPassportProvider.WECHAT.name())
+                .andProviderIdEqualTo(userInfoResponse.getOpenid())
+                .andDeletedEqualTo(Boolean.FALSE);
+        List<BalabalaMemberPassport> passports = memberPassportMapper.selectByExample(example);
+
+        if (CollectionUtils.isEmpty(passports)) { // 注册新会员
+            log.info("controller:members:signin:wechat:微信会员尚未注册, openid={}", userInfoResponse.getOpenid());
+            memberMapper.insertSelective(memberToBeSave);
+
+            BalabalaMemberPassport passport = new BalabalaMemberPassport();
+            passport.setMemberId(memberToBeSave.getId());
+            passport.setProviderId(userInfoResponse.getOpenid());
+            memberPassportMapper.insertSelective(passport);
+        } else { // 更新会员信息
+            BalabalaMemberPassport passport = passports.get(0);
+            log.info("controller:members:signin:wechat:更新微信会员信息, openid={}, memberId={}",
+                    userInfoResponse.getOpenid(), passport.getMemberId());
+            BalabalaMember member = memberMapper.selectByPrimaryKey(passport.getMemberId());
+            memberToBeSave.setId(member.getId());
+            memberMapper.updateByPrimaryKeySelective(memberToBeSave);
+        }
+
+        // 往session中设置会员ID
+        authenticator.newSession(memberToBeSave.getId());
+
+        SigninResponse response = new SigninResponse();
+        response.setNickname(memberToBeSave.getNickname());
+        return new ApiEntity<>(response);
+    }
+
+    @ApiOperation(value = "绑定手机号")
+    @PostMapping(value = "/members/phone/bind")
+    public ApiEntity bindPhone(@Validated @RequestBody BindPhoneRequest request) {
+        if (!authenticator.authenticate()) {
+            return new ApiEntity(ApiStatus.STATUS_401);
+        }
+
+        Long memberId = authenticator.getCurrentMemberId();
+
+        // 检查短信验证码
+        SmsVerifyCodeRequest verifyCodeRequest = new SmsVerifyCodeRequest();
+        verifyCodeRequest.setMobile(request.getPhoneNumber());
+        verifyCodeRequest.setCode(request.getCode());
+        SmsVerifyCodeResponse verifyCodeResponse = null;
+
+        try {
+            verifyCodeResponse = neteaseClient.execute(verifyCodeRequest);
+        } catch (IOException e) {
+            log.error("controller:members:phone:bind:调用网易云检查短信验证码失败", e);
+            return new ApiEntity(ApiStatus.STATUS_500);
+        }
+
+        if (!verifyCodeResponse.isSuccess()) {
+            log.error("controller:members:phone:bind:调用网易云检查短信验证码失败, code=" + verifyCodeResponse.getCode());
+            return new ApiEntity(ApiStatus.STATUS_500);
+        }
+
+        BalabalaMemberPassportExample example = new BalabalaMemberPassportExample();
+        example.createCriteria()
+                .andMemberIdEqualTo(memberId)
+                .andProviderEqualTo(MemberPassportProvider.PHONE.name())
+                .andDeletedEqualTo(Boolean.FALSE);
+        List<BalabalaMemberPassport> passports = memberPassportMapper.selectByExample(example);
+
+        if (CollectionUtils.isNotEmpty(passports)) {
+            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "您已绑定过手机号");
+        }
+
+        // 创建手机号账号
+        BalabalaMemberPassport passportToBeCreated = new BalabalaMemberPassport();
+        passportToBeCreated.setMemberId(memberId);
+        passportToBeCreated.setProvider(MemberPassportProvider.PHONE);
+        passportToBeCreated.setProviderId(request.getPhoneNumber());
+        passportToBeCreated.setPassword(DigestUtils.md5Hex(request.getPassword()));
+        memberPassportMapper.insertSelective(passportToBeCreated);
+
+        // 更新校区
+        BalabalaMember memberToBeUpdated = new BalabalaMember();
+        memberToBeUpdated.setId(memberId);
+        memberToBeUpdated.setCampusId(request.getCampusId());
+        memberMapper.updateByPrimaryKeySelective(memberToBeUpdated);
+        return new ApiEntity();
+    }
+
     @ApiOperation(value = "忘记密码")
     @PostMapping(value = "/members/password/reset")
-    public ApiEntity resetPassword(@RequestBody ResetPasswordRequest request) {
+    public ApiEntity resetPassword(@Validated @RequestBody ResetPasswordRequest request) {
+        // 检查短信验证码
+        SmsVerifyCodeRequest verifyCodeRequest = new SmsVerifyCodeRequest();
+        verifyCodeRequest.setMobile(request.getPhoneNumber());
+        verifyCodeRequest.setCode(request.getCode());
+        SmsVerifyCodeResponse verifyCodeResponse = null;
+
+        try {
+            verifyCodeResponse = neteaseClient.execute(verifyCodeRequest);
+        } catch (IOException e) {
+            log.error("controller:members:phone:bind:调用网易云检查短信验证码失败", e);
+            return new ApiEntity(ApiStatus.STATUS_500);
+        }
+
+        if (!verifyCodeResponse.isSuccess()) {
+            log.error("controller:members:phone:bind:调用网易云检查短信验证码失败, code=" + verifyCodeResponse.getCode());
+            return new ApiEntity(ApiStatus.STATUS_500);
+        }
+
         return new ApiEntity();
     }
 
@@ -253,7 +404,6 @@ public class MemberController {
         }
 
         Long memberId = authenticator.getCurrentMemberId();
-
         Date now = new Date();
         BalabalaMemberLessonExample lessonExample = new BalabalaMemberLessonExample();
         lessonExample.createCriteria()
