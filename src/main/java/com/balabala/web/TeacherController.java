@@ -541,11 +541,13 @@ public class TeacherController {
         }
 
         Long teacherId = authenticator.getCurrentTeacherId();
+        BalabalaTeacher teacher = teacherMapper.selectByPrimaryKey(teacherId);
         BalabalaClass aClass = new BalabalaClass();
         aClass.setCourseId(request.getCourseId());
         aClass.setCategoryId(request.getCategoryId());
         aClass.setClassName(request.getClassName());
         aClass.setTeacherId(teacherId);
+        aClass.setCampusId(teacher.getCampusId());
         aClass.setStatus(ClassStatus.IN_REVIEW);
         classMapper.insertSelective(aClass);
 
@@ -554,6 +556,7 @@ public class TeacherController {
                 BalabalaClassMember classMember = new BalabalaClassMember();
                 classMember.setClassId(aClass.getId());
                 classMember.setMemberId(memberId);
+                classMember.setStatus(ClassStatus.IN_REVIEW);
                 classMemberMapper.insertSelective(classMember);
             }
         }

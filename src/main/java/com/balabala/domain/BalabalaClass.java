@@ -13,6 +13,8 @@ public class BalabalaClass extends AbstractEntity<Long> {
 
     private Long teacherId;
 
+    private Long campusId;
+
     private Long englishTeacherId;
 
     private String className;
