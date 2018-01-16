@@ -114,7 +114,9 @@ public class MemberController {
             return new ApiEntity(ApiStatus.STATUS_500);
         }
 
-        if (!verifyCodeResponse.isSuccess()) {
+        if (verifyCodeResponse.getCode() == 413) {
+            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "验证失败(短信服务)");
+        } else if (!verifyCodeResponse.isSuccess()) {
             log.error("controller:members:signup:调用网易云检查短信验证码失败, code=" + verifyCodeResponse.getCode());
             return new ApiEntity(ApiStatus.STATUS_500);
         }
@@ -201,7 +203,9 @@ public class MemberController {
         tokenRequest.setCode(body.getCode());
         SnsTokenResponse tokenResponse = wxMpClient.execute(tokenRequest);
 
-        if (!tokenResponse.isSuccess()) {
+        if (tokenResponse.getErrcode() == 40029) {
+            return new ApiEntity<>(ApiStatus.STATUS_400.getCode(), "不合法的 oauth_code");
+        } else if (!tokenResponse.isSuccess()) {
             log.error("controller:members:signin:wechat:调用微信公众号获取sns token失败, code={}, msg={}",
                     tokenResponse.getErrcode(), tokenResponse.getErrmsg());
             return new ApiEntity<>(ApiStatus.STATUS_500);
@@ -285,7 +289,9 @@ public class MemberController {
             return new ApiEntity(ApiStatus.STATUS_500);
         }
 
-        if (!verifyCodeResponse.isSuccess()) {
+        if (verifyCodeResponse.getCode() == 413) {
+            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "验证失败(短信服务)");
+        } else if (!verifyCodeResponse.isSuccess()) {
             log.error("controller:members:phone:bind:调用网易云检查短信验证码失败, code=" + verifyCodeResponse.getCode());
             return new ApiEntity(ApiStatus.STATUS_500);
         }
@@ -333,7 +339,9 @@ public class MemberController {
             return new ApiEntity(ApiStatus.STATUS_500);
         }
 
-        if (!verifyCodeResponse.isSuccess()) {
+        if (verifyCodeResponse.getCode() == 413) {
+            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "验证失败(短信服务)");
+        } else if (!verifyCodeResponse.isSuccess()) {
             log.error("controller:members:phone:bind:调用网易云检查短信验证码失败, code=" + verifyCodeResponse.getCode());
             return new ApiEntity(ApiStatus.STATUS_500);
         }

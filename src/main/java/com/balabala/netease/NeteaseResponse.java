@@ -12,6 +12,10 @@ public abstract class NeteaseResponse {
 
     private String desc;
 
+    private String msg;
+
+    private Object obj;
+
     public boolean isSuccess() {
         return code == 200;
     }

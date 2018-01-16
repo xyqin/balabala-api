@@ -8,8 +8,4 @@ import lombok.EqualsAndHashCode;
 @EqualsAndHashCode(callSuper = false)
 public class SmsSendCodeResponse extends NeteaseResponse {
 
-    private String msg;
-
-    private String obj;
-
 }
