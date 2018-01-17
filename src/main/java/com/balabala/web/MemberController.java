@@ -199,6 +199,7 @@ public class MemberController {
     @ApiOperation(value = "微信授权登录")
     @PostMapping(value = "/members/signin/wechat")
     public ApiEntity<SigninResponse> signinByWechat(@Validated @RequestBody SigninWechatRequest body) throws Exception {
+        log.info("controller:members:signin:wechat:调用微信公众号获取sns token, oauth_code={}", body.getCode());
         SnsTokenRequest tokenRequest = new SnsTokenRequest();
         tokenRequest.setCode(body.getCode());
         SnsTokenResponse tokenResponse = wxMpClient.execute(tokenRequest);
@@ -498,6 +499,7 @@ public class MemberController {
         response.setEndAt(lessonInfo.getEndAt());
         response.setRoom(lessonInfo.getRoom());
         response.setTeacherName(teacher.getFullName());
+        response.setTeacherAccid(teacher.getAccid());
         response.setAccid(member.getAccid());
         response.setToken(member.getToken());
 

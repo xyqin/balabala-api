@@ -11,6 +11,8 @@ public class CommentDto {
 
     private String teacher;
 
+    private String teacherAvatar;
+
     private String content;
 
     private Date createdAt;

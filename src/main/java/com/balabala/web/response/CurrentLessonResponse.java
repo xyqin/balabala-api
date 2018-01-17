@@ -25,6 +25,8 @@ public class CurrentLessonResponse {
 
     private String room;
 
+    private String teacherAccid;
+
     private Date timestamp = new Date();
 
     private List<ClassMemberDto> members = Lists.newArrayList();

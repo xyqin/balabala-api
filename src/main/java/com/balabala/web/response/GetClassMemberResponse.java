@@ -14,6 +14,8 @@ public class GetClassMemberResponse {
 
     private String avatar;
 
+    private String phoneNumber;
+
     private int points;
 
     private List<CommentDto> comments = Lists.newArrayList();

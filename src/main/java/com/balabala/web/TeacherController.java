@@ -495,7 +495,9 @@ public class TeacherController {
         }
 
         Long teacherId = authenticator.getCurrentTeacherId();
+        BalabalaTeacher teacher = teacherMapper.selectByPrimaryKey(teacherId);
 
+        // 获取学员信息
         BalabalaClassMemberExample example = new BalabalaClassMemberExample();
         example.createCriteria()
                 .andClassIdEqualTo(classId)
@@ -508,6 +510,12 @@ public class TeacherController {
         }
 
         BalabalaMember member = memberMapper.selectByPrimaryKey(memberId);
+        BalabalaMemberPassportExample passportExample = new BalabalaMemberPassportExample();
+        passportExample.createCriteria()
+                .andMemberIdEqualTo(memberId)
+                .andProviderEqualTo(MemberPassportProvider.PHONE.name())
+                .andDeletedEqualTo(Boolean.FALSE);
+        List<BalabalaMemberPassport> passports = passportMapper.selectByExample(passportExample);
         BalabalaMemberCommentExample commentExample = new BalabalaMemberCommentExample();
         commentExample.createCriteria()
                 .andTeacherIdEqualTo(teacherId)
@@ -522,11 +530,17 @@ public class TeacherController {
         response.setAvatar(member.getAvatar());
         response.setPoints(member.getPoints());
 
+        if (CollectionUtils.isNotEmpty(passports)) {
+            response.setPhoneNumber(passports.get(0).getProviderId());
+        }
+
         for (BalabalaMemberComment comment : comments) {
             CommentDto dto = new CommentDto();
             dto.setId(comment.getId());
             dto.setContent(comment.getContent());
             dto.setCreatedAt(comment.getCreatedAt());
+            dto.setTeacher(teacher.getFullName());
+            dto.setTeacherAvatar(teacher.getAvatar());
             response.getComments().add(dto);
         }
 

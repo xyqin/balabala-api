@@ -1,16 +1,15 @@
 package com.balabala.web;
 
-import com.balabala.domain.BalabalaTextbook;
-import com.balabala.domain.BalabalaTextbookCategory;
-import com.balabala.domain.TextbookType;
+import com.balabala.domain.*;
+import com.balabala.repository.BalabalaCourseCategoryMapper;
+import com.balabala.repository.BalabalaCourseMapper;
 import com.balabala.repository.BalabalaTextbookCategoryMapper;
 import com.balabala.repository.BalabalaTextbookMapper;
+import com.balabala.repository.example.BalabalaCourseCategoryExample;
+import com.balabala.repository.example.BalabalaCourseExample;
 import com.balabala.repository.example.BalabalaTextbookCategoryExample;
 import com.balabala.repository.example.BalabalaTextbookExample;
-import com.balabala.web.response.GetTextbookResponse;
-import com.balabala.web.response.GetTextbooksResponse;
-import com.balabala.web.response.TextbookCategoryDto;
-import com.balabala.web.response.TextbookDto;
+import com.balabala.web.response.*;
 import com.google.common.collect.Lists;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -25,15 +24,60 @@ import java.util.List;
 import java.util.Objects;
 
 @Slf4j
-@Api(tags = "教材", description = "教材")
+@Api(tags = "课程", description = "课程相关接口")
 @RestController
-public class TextbookController {
+public class CourseController {
+
+    @Autowired
+    private BalabalaCourseMapper courseMapper;
+
+    @Autowired
+    private BalabalaCourseCategoryMapper courseCategoryMapper;
 
     @Autowired
     private BalabalaTextbookCategoryMapper textbookCategoryMapper;
 
     @Autowired
     private BalabalaTextbookMapper textbookMapper;
+
+    @ApiOperation(value = "获取课程分类列表")
+    @GetMapping(value = "/courses/categories")
+    public ApiEntity<List<CourseCategoryDto>> getCourseCategories() {
+        BalabalaCourseCategoryExample example = new BalabalaCourseCategoryExample();
+        example.createCriteria().andDeletedEqualTo(Boolean.FALSE);
+        List<BalabalaCourseCategory> categories = courseCategoryMapper.selectByExample(example);
+        List<CourseCategoryDto> response = Lists.newArrayList();
+
+        for (BalabalaCourseCategory category : categories) {
+            CourseCategoryDto dto = new CourseCategoryDto();
+            dto.setId(category.getId());
+            dto.setName(category.getCategoryName());
+            response.add(dto);
+        }
+
+        return new ApiEntity<>(response);
+    }
+
+
+    @ApiOperation(value = "获取课程列表")
+    @GetMapping(value = "/courses")
+    public ApiEntity<List<CourseDto>> getCourses(@RequestParam Long categoryId) {
+        BalabalaCourseExample example = new BalabalaCourseExample();
+        example.createCriteria()
+                .andCategoryIdEqualTo(categoryId)
+                .andDeletedEqualTo(Boolean.FALSE);
+        List<BalabalaCourse> courses = courseMapper.selectByExample(example);
+        List<CourseDto> response = Lists.newArrayList();
+
+        for (BalabalaCourse course : courses) {
+            CourseDto dto = new CourseDto();
+            dto.setId(course.getId());
+            dto.setName(course.getCourseName());
+            response.add(dto);
+        }
+
+        return new ApiEntity<>(response);
+    }
 
     @ApiOperation(value = "根据父id获取教材分类列表")
     @GetMapping(value = "/textbooks/categories")
