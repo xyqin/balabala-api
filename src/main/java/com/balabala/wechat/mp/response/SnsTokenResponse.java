@@ -25,4 +25,6 @@ public class SnsTokenResponse extends WxMpResponse {
 
     private String scope;
 
+    private String unionid;
+
 }

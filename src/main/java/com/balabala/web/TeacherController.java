@@ -12,6 +12,7 @@ import com.balabala.web.response.*;
 import com.google.common.collect.Lists;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.collections4.CollectionUtils;
@@ -410,7 +411,9 @@ public class TeacherController {
 
     @ApiOperation(value = "获取授课历史")
     @GetMapping(value = "/teachers/lessons/history")
-    public ApiEntity<List<LessonDto>> getLessonHistory(@RequestParam int page, @RequestParam int size) {
+    public ApiEntity<List<LessonDto>> getLessonHistory(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size) {
         if (!authenticator.authenticateForTeacher()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
@@ -439,7 +442,10 @@ public class TeacherController {
 
     @ApiOperation(value = "获取班级列表")
     @GetMapping(value = "/teachers/classes")
-    public ApiEntity<List<ClassDto>> getClasses() {
+    public ApiEntity<List<ClassDto>> getClasses(
+            @ApiParam(value = "班级状态（in_review审核中，ongoing线下，finished已结束）") @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size) {
         if (!authenticator.authenticateForTeacher()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
@@ -447,10 +453,19 @@ public class TeacherController {
         Long teacherId = authenticator.getCurrentTeacherId();
 
         BalabalaClassExample example = new BalabalaClassExample();
-        example.createCriteria()
-                .andTeacherIdEqualTo(teacherId)
-                .andStatusEqualTo(ClassStatus.ONGOING.name())
-                .andDeletedEqualTo(Boolean.FALSE);
+        if (StringUtils.isBlank(status)) {
+            example.createCriteria()
+                    .andTeacherIdEqualTo(teacherId)
+                    .andDeletedEqualTo(Boolean.FALSE);
+        } else {
+            example.createCriteria()
+                    .andTeacherIdEqualTo(teacherId)
+                    .andStatusEqualTo(status.toUpperCase())
+                    .andDeletedEqualTo(Boolean.FALSE);
+        }
+
+        example.setStartRow((page - 1) * size);
+        example.setPageSize(size);
         example.setOrderByClause("created_at DESC");
         List<BalabalaClass> classes = classMapper.selectByExample(example);
         List<ClassDto> response = Lists.newArrayList();
@@ -558,7 +573,6 @@ public class TeacherController {
         BalabalaTeacher teacher = teacherMapper.selectByPrimaryKey(teacherId);
         BalabalaClass aClass = new BalabalaClass();
         aClass.setCourseId(request.getCourseId());
-        aClass.setCategoryId(request.getCategoryId());
         aClass.setClassName(request.getClassName());
         aClass.setTeacherId(teacherId);
         aClass.setCampusId(teacher.getCampusId());

@@ -11,6 +11,8 @@ public class BalabalaCourse extends AbstractEntity<Long> {
 
     private Long categoryId;
 
+    private Long textbookCategoryId;
+
     private String courseName;
 
     private Integer onlineLessons;

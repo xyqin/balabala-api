@@ -23,7 +23,6 @@ import io.swagger.annotations.ApiParam;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.time.DateUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -31,7 +30,6 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
-import java.text.ParseException;
 import java.util.Date;
 import java.util.List;
 import java.util.Objects;
@@ -242,6 +240,7 @@ public class MemberController {
                 .andProviderIdEqualTo(userInfoResponse.getOpenid())
                 .andDeletedEqualTo(Boolean.FALSE);
         List<BalabalaMemberPassport> passports = memberPassportMapper.selectByExample(example);
+        boolean phoneBound = false;
 
         if (CollectionUtils.isEmpty(passports)) { // 注册新会员
             log.info("controller:members:signin:wechat:微信会员尚未注册, openid={}", userInfoResponse.getOpenid());
@@ -249,6 +248,7 @@ public class MemberController {
 
             BalabalaMemberPassport passport = new BalabalaMemberPassport();
             passport.setMemberId(memberToBeSave.getId());
+            passport.setProvider(MemberPassportProvider.WECHAT);
             passport.setProviderId(userInfoResponse.getOpenid());
             memberPassportMapper.insertSelective(passport);
         } else { // 更新会员信息
@@ -258,6 +258,18 @@ public class MemberController {
             BalabalaMember member = memberMapper.selectByPrimaryKey(passport.getMemberId());
             memberToBeSave.setId(member.getId());
             memberMapper.updateByPrimaryKeySelective(memberToBeSave);
+
+            // 查找是否已绑定手机号
+            example.clear();
+            example.createCriteria()
+                    .andMemberIdEqualTo(member.getId())
+                    .andProviderEqualTo(MemberPassportProvider.PHONE.name())
+                    .andDeletedEqualTo(Boolean.FALSE);
+            List<BalabalaMemberPassport> phonePassports = memberPassportMapper.selectByExample(example);
+
+            if (CollectionUtils.isNotEmpty(phonePassports)) {
+                phoneBound = true;
+            }
         }
 
         // 往session中设置会员ID
@@ -265,6 +277,7 @@ public class MemberController {
 
         SigninResponse response = new SigninResponse();
         response.setNickname(memberToBeSave.getNickname());
+        response.setPhoneBound(phoneBound);
         return new ApiEntity<>(response);
     }
 
@@ -308,19 +321,78 @@ public class MemberController {
             return new ApiEntity(ApiStatus.STATUS_400.getCode(), "您已绑定过手机号");
         }
 
-        // 创建手机号账号
-        BalabalaMemberPassport passportToBeCreated = new BalabalaMemberPassport();
-        passportToBeCreated.setMemberId(memberId);
-        passportToBeCreated.setProvider(MemberPassportProvider.PHONE);
-        passportToBeCreated.setProviderId(request.getPhoneNumber());
-        passportToBeCreated.setPassword(DigestUtils.md5Hex(request.getPassword()));
-        memberPassportMapper.insertSelective(passportToBeCreated);
+        example.clear();
+        example.createCriteria()
+                .andProviderEqualTo(MemberPassportProvider.PHONE.name())
+                .andProviderIdEqualTo(request.getPhoneNumber())
+                .andDeletedEqualTo(Boolean.FALSE);
+        List<BalabalaMemberPassport> phonePassports = memberPassportMapper.selectByExample(example);
 
-        // 更新校区
         BalabalaMember memberToBeUpdated = new BalabalaMember();
         memberToBeUpdated.setId(memberId);
         memberToBeUpdated.setCampusId(request.getCampusId());
+
+        if (CollectionUtils.isEmpty(phonePassports)) {
+            log.info("controller:members:phone:bind:手机号尚未注册创建新的手机账号, phone={}", request.getPhoneNumber());
+            // 注册网易云IM账号
+            ImUserCreateRequest imUserCreateRequest = new ImUserCreateRequest();
+            imUserCreateRequest.setAccid("member_" + request.getPhoneNumber());
+            ImUserCreateResponse imUserCreateResponse = null;
+
+            try {
+                imUserCreateResponse = neteaseClient.execute(imUserCreateRequest);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            if (!imUserCreateResponse.isSuccess()) {
+                log.error("controller:members:phone:bind:调用网易云注册IM账号失败, code=" + imUserCreateResponse.getCode());
+                return new ApiEntity(ApiStatus.STATUS_500);
+            }
+
+            memberToBeUpdated.setAccid(imUserCreateResponse.getInfo().getAccid());
+            memberToBeUpdated.setToken(imUserCreateResponse.getInfo().getToken());
+
+            // 手机号未绑定直接绑定
+            BalabalaMemberPassport passportToBeCreated = new BalabalaMemberPassport();
+            passportToBeCreated.setMemberId(memberId);
+            passportToBeCreated.setProvider(MemberPassportProvider.PHONE);
+            passportToBeCreated.setProviderId(request.getPhoneNumber());
+            passportToBeCreated.setPassword(DigestUtils.md5Hex(request.getPassword()));
+            memberPassportMapper.insertSelective(passportToBeCreated);
+        } else {
+            BalabalaMemberPassport phonePassport = phonePassports.get(0);
+            example.clear();
+            example.createCriteria()
+                    .andProviderEqualTo(MemberPassportProvider.WECHAT.name())
+                    .andMemberIdEqualTo(phonePassport.getMemberId())
+                    .andDeletedEqualTo(Boolean.FALSE);
+            List<BalabalaMemberPassport> wechatPassports = memberPassportMapper.selectByExample(example);
+
+            if (CollectionUtils.isNotEmpty(wechatPassports)) {
+                log.info("controller:members:phone:bind:手机号已注册且已绑定微信, memberId={}, phone={}, openid={}",
+                        wechatPassports.get(0).getMemberId(), phonePassport.getProviderId(), wechatPassports.get(0).getProviderId());
+                return new ApiEntity(ApiStatus.STATUS_400.getCode(), "您的手机号已绑定了其它微信");
+            }
+
+            log.info("controller:members:phone:bind:手机号已注册尚未绑定微信, memberId={}, phone={}",
+                    phonePassport.getMemberId(), phonePassport.getProviderId());
+            BalabalaMemberPassport passportToBeUpdated = new BalabalaMemberPassport();
+            passportToBeUpdated.setId(phonePassport.getId());
+            passportToBeUpdated.setMemberId(memberId);
+            passportToBeUpdated.setPassword(DigestUtils.md5Hex(request.getPassword()));
+            memberPassportMapper.updateByPrimaryKeySelective(passportToBeUpdated);
+
+            BalabalaMember phoneMember = memberMapper.selectByPrimaryKey(phonePassport.getMemberId());
+            memberToBeUpdated.setAccid(phoneMember.getAccid());
+            memberToBeUpdated.setToken(phoneMember.getToken());
+            memberToBeUpdated.setPoints(phoneMember.getPoints());
+        }
+
+        // 会员信息
         memberMapper.updateByPrimaryKeySelective(memberToBeUpdated);
+        log.info("controller:members:phone:bind:绑定手机成功, memberId={}, phone={}",
+                memberId, request.getPhoneNumber());
         return new ApiEntity();
     }
 
@@ -411,6 +483,7 @@ public class MemberController {
     @ApiOperation(value = "获取会员首页信息")
     @GetMapping(value = "/members/home")
     public ApiEntity<GetMemberHomeResponse> getMemberHome() {
+        log.info("controller:members:home:获取会员首页信息请求, path={}", "/members/home");
         GetMemberHomeResponse response = new GetMemberHomeResponse();
 
         Date now = new Date();
@@ -435,6 +508,7 @@ public class MemberController {
         Long memberId = authenticator.getCurrentMemberId();
 
         if (Objects.nonNull(memberId)) {
+            log.info("controller:members:home:获取会员课程回顾, memberId={}", memberId);
             BalabalaMemberLessonExample memberLessonExample = new BalabalaMemberLessonExample();
             memberLessonExample.createCriteria()
                     .andMemberIdEqualTo(memberId)
@@ -695,8 +769,8 @@ public class MemberController {
     @GetMapping(value = "/members/lessons")
     public ApiEntity<List<LessonDto>> getLessons(
             @ApiParam(value = "课时类型（online线上，offline线下）") @RequestParam(defaultValue = "online") String type,
-            @RequestParam int page,
-            @RequestParam int size) {
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size) {
         if (!authenticator.authenticate()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
@@ -719,35 +793,18 @@ public class MemberController {
         example.setPageSize(size);
         example.setOrderByClause("start_at ASC");
         List<BalabalaMemberLesson> lessons = memberLessonMapper.selectByExample(example);
-        List<LessonDto> response = Lists.newArrayList();
-
-        for (BalabalaMemberLesson memberLesson : lessons) {
-            BalabalaClassLesson lesson = lessonMapper.selectByPrimaryKey(memberLesson.getLessonId());
-            LessonDto dto = new LessonDto();
-            dto.setId(lesson.getId());
-            dto.setName(lesson.getLessonName());
-            dto.setThumbnail(lesson.getThumbnail());
-            dto.setDuration((int) ((lesson.getEndAt().getTime() - lesson.getStartAt().getTime()) / 1000 / 60));
-
-            if (DateUtils.isSameDay(new Date(), lesson.getStartAt())) {
-                dto.setStatus("SOON");
-            } else {
-                dto.setStatus("PENDING");
-            }
-
-            response.add(dto);
-        }
-
-        return new ApiEntity<>(response);
+        return new ApiEntity<>(toLessonDtoList(lessons));
     }
 
     @ApiOperation(value = "获取我的授课历史列表")
     @GetMapping(value = "/members/lessons/history")
     public ApiEntity<List<LessonDto>> getLessonsHistory(
             @ApiParam(value = "课时类型（online线上，offline线下）", required = true) @RequestParam(defaultValue = "online") String type,
-            @ApiParam(value = "历史时间范围（yyyyMMddHHmmss）") @RequestParam(required = false) String timestamp,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size) {
+        log.info("controller:members:lessons:history:获取我的授课历史列表请求, path={}, type={}, page={}, size={}",
+                "/members/lessons/history", type, page, size);
+
         if (!authenticator.authenticate()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
@@ -762,49 +819,15 @@ public class MemberController {
 
         BalabalaMemberLessonExample example = new BalabalaMemberLessonExample();
         example.setOrderByClause("end_at DESC");
-
-        if (StringUtils.isNotBlank(timestamp)) {
-            Date historyTimestamp = null;
-            try {
-                historyTimestamp = DateUtils.parseDate(timestamp, "yyyyMMddHHmmss");
-            } catch (ParseException e) {
-                return new ApiEntity<>(ApiStatus.STATUS_400.getCode(), "历史时间范围值无效, 正确格式: yyyyMMddHHmmss");
-            }
-
-            if (historyTimestamp.after(new Date())) {
-                return new ApiEntity<>(ApiStatus.STATUS_400.getCode(), "历史时间范围值必须早于当前时间");
-            }
-
-            example.createCriteria()
-                    .andMemberIdEqualTo(memberId)
-                    .andTypeEqualTo(typeEnum.name()).andDeletedEqualTo(Boolean.FALSE)
-                    .andEndAtLessThan(new Date())
-                    .andStartAtGreaterThan(historyTimestamp)
-                    .andDeletedEqualTo(Boolean.FALSE);
-        } else {
-            example.createCriteria()
-                    .andMemberIdEqualTo(memberId)
-                    .andTypeEqualTo(typeEnum.name()).andDeletedEqualTo(Boolean.FALSE)
-                    .andEndAtLessThan(new Date())
-                    .andDeletedEqualTo(Boolean.FALSE);
-            example.setStartRow((page - 1) * size);
-            example.setPageSize(size);
-        }
-
+        example.createCriteria()
+                .andMemberIdEqualTo(memberId)
+                .andTypeEqualTo(typeEnum.name()).andDeletedEqualTo(Boolean.FALSE)
+                .andEndAtLessThan(new Date())
+                .andDeletedEqualTo(Boolean.FALSE);
+        example.setStartRow((page - 1) * size);
+        example.setPageSize(size);
         List<BalabalaMemberLesson> lessons = memberLessonMapper.selectByExample(example);
-        List<LessonDto> response = Lists.newArrayList();
-
-        for (BalabalaMemberLesson memberLesson : lessons) {
-            BalabalaClassLesson lesson = lessonMapper.selectByPrimaryKey(memberLesson.getLessonId());
-            LessonDto dto = new LessonDto();
-            dto.setId(lesson.getId());
-            dto.setName(lesson.getLessonName());
-            dto.setThumbnail(lesson.getThumbnail());
-            dto.setDuration((int) ((lesson.getEndAt().getTime() - lesson.getStartAt().getTime()) / 1000 / 60));
-            response.add(dto);
-        }
-
-        return new ApiEntity<>(response);
+        return new ApiEntity<>(toLessonDtoList(lessons));
     }
 
     @ApiOperation(value = "获取我的评语列表")
@@ -844,8 +867,8 @@ public class MemberController {
     @ApiOperation(value = "获取我的积分日志列表")
     @GetMapping(value = "/members/points/logs")
     public ApiEntity<List<PointLogDto>> getPointLogs(
-            @RequestParam int page,
-            @RequestParam int size) {
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size) {
         if (!authenticator.authenticate()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
@@ -869,6 +892,33 @@ public class MemberController {
         }
 
         return new ApiEntity<>(response);
+    }
+
+    private List<LessonDto> toLessonDtoList(List<BalabalaMemberLesson> memberLessons) {
+        List<LessonDto> response = Lists.newArrayList();
+        Date now = new Date();
+
+        for (BalabalaMemberLesson memberLesson : memberLessons) {
+            BalabalaClassLesson lesson = lessonMapper.selectByPrimaryKey(memberLesson.getLessonId());
+            LessonDto dto = new LessonDto();
+            dto.setId(lesson.getId());
+            dto.setName(lesson.getLessonName());
+            dto.setThumbnail(lesson.getThumbnail());
+            dto.setStartAt(lesson.getStartAt());
+            dto.setDuration((int) ((lesson.getEndAt().getTime() - lesson.getStartAt().getTime()) / 1000 / 60));
+
+            if (DateUtils.isSameDay(new Date(), lesson.getStartAt())) {
+                dto.setStatus("SOON");
+            } else if (now.after(lesson.getEndAt())) {
+                dto.setStatus("FINISHED");
+            } else {
+                dto.setStatus("PENDING");
+            }
+
+            response.add(dto);
+        }
+
+        return response;
     }
 
 }

@@ -9,8 +9,6 @@ public class BalabalaClass extends AbstractEntity<Long> {
 
     private Long courseId;
 
-    private Long categoryId;
-
     private Long teacherId;
 
     private Long campusId;

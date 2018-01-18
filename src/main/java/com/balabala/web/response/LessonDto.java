@@ -2,12 +2,16 @@ package com.balabala.web.response;
 
 import lombok.Data;
 
+import java.util.Date;
+
 @Data
 public class LessonDto {
 
     private Long id;
 
     private String name;
+
+    private Date startAt;
 
     private int duration;
 
