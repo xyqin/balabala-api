@@ -7,29 +7,29 @@
         <setting name="mapUnderscoreToCamelCase" value="true"/>
     </settings>
     <typeAliases>
-        <package name="com.balabala.domain"/>
+        <package name="com.barablah.domain"/>
     </typeAliases>
     <mappers>
-        <mapper resource="com/balabala/mapper/BalabalaCampusMapper.xml"/>
-        <mapper resource="com/balabala/mapper/BalabalaClassMapper.xml"/>
-        <mapper resource="com/balabala/mapper/BalabalaClassLessonMapper.xml"/>
-        <mapper resource="com/balabala/mapper/BalabalaClassMemberMapper.xml"/>
-        <mapper resource="com/balabala/mapper/BalabalaCourseMapper.xml"/>
-        <mapper resource="com/balabala/mapper/BalabalaCourseCategoryMapper.xml"/>
-        <mapper resource="com/balabala/mapper/BalabalaMemberMapper.xml"/>
-        <mapper resource="com/balabala/mapper/BalabalaMemberCommentMapper.xml"/>
-        <mapper resource="com/balabala/mapper/BalabalaMemberHomeworkItemMapper.xml"/>
-        <mapper resource="com/balabala/mapper/BalabalaMemberHomeworkMapper.xml"/>
-        <mapper resource="com/balabala/mapper/BalabalaMemberLessonMapper.xml"/>
-        <mapper resource="com/balabala/mapper/BalabalaMemberPassportMapper.xml"/>
-        <mapper resource="com/balabala/mapper/BalabalaMemberPointLogMapper.xml"/>
-        <mapper resource="com/balabala/mapper/BalabalaPositionMapper.xml"/>
-        <mapper resource="com/balabala/mapper/BalabalaPositionContentMapper.xml"/>
-        <mapper resource="com/balabala/mapper/BalabalaRegionMapper.xml"/>
-        <mapper resource="com/balabala/mapper/BalabalaTeacherMapper.xml"/>
-        <mapper resource="com/balabala/mapper/BalabalaTeacherHomeworkItemMapper.xml"/>
-        <mapper resource="com/balabala/mapper/BalabalaTeacherHomeworkMapper.xml"/>
-        <mapper resource="com/balabala/mapper/BalabalaTextbookMapper.xml"/>
-        <mapper resource="com/balabala/mapper/BalabalaTextbookCategoryMapper.xml"/>
+        <mapper resource="com/barablah/mapper/BarablahCampusMapper.xml"/>
+        <mapper resource="com/barablah/mapper/BarablahClassMapper.xml"/>
+        <mapper resource="com/barablah/mapper/BarablahClassLessonMapper.xml"/>
+        <mapper resource="com/barablah/mapper/BarablahClassMemberMapper.xml"/>
+        <mapper resource="com/barablah/mapper/BarablahCourseMapper.xml"/>
+        <mapper resource="com/barablah/mapper/BarablahCourseCategoryMapper.xml"/>
+        <mapper resource="com/barablah/mapper/BarablahMemberMapper.xml"/>
+        <mapper resource="com/barablah/mapper/BarablahMemberCommentMapper.xml"/>
+        <mapper resource="com/barablah/mapper/BarablahMemberHomeworkItemMapper.xml"/>
+        <mapper resource="com/barablah/mapper/BarablahMemberHomeworkMapper.xml"/>
+        <mapper resource="com/barablah/mapper/BarablahMemberLessonMapper.xml"/>
+        <mapper resource="com/barablah/mapper/BarablahMemberPassportMapper.xml"/>
+        <mapper resource="com/barablah/mapper/BarablahMemberPointLogMapper.xml"/>
+        <mapper resource="com/barablah/mapper/BarablahPositionMapper.xml"/>
+        <mapper resource="com/barablah/mapper/BarablahPositionContentMapper.xml"/>
+        <mapper resource="com/barablah/mapper/BarablahRegionMapper.xml"/>
+        <mapper resource="com/barablah/mapper/BarablahTeacherMapper.xml"/>
+        <mapper resource="com/barablah/mapper/BarablahTeacherHomeworkItemMapper.xml"/>
+        <mapper resource="com/barablah/mapper/BarablahTeacherHomeworkMapper.xml"/>
+        <mapper resource="com/barablah/mapper/BarablahTextbookMapper.xml"/>
+        <mapper resource="com/barablah/mapper/BarablahTextbookCategoryMapper.xml"/>
     </mappers>
 </configuration>

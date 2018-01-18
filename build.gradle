@@ -8,7 +8,7 @@ plugins {
     id 'nebula.release' version '6.0.0'
 }
 
-group 'com.balabala'
+group 'com.barablah'
 
 sourceCompatibility = 1.8
 targetCompatibility = 1.8

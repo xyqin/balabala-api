@@ -28,7 +28,7 @@
             </rollingPolicy>
         </appender>
 
-        <logger name="com.balabala" level="DEBUG"/>
+        <logger name="com.barablah" level="DEBUG"/>
 
         <root level="INFO">
             <appender-ref ref="FILE"/>
@@ -51,7 +51,7 @@
             </rollingPolicy>
         </appender>
 
-        <logger name="com.balabala" level="DEBUG"/>
+        <logger name="com.barablah" level="DEBUG"/>
 
         <root level="WARN">
             <appender-ref ref="FILE"/>

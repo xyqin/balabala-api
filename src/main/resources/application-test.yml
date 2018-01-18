@@ -2,7 +2,7 @@ spring:
   application:
     name: api-service
   datasource:
-    url: jdbc:mysql://47.100.57.236:3306/balabala?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&autoReconnect=true&rewriteBatchedStatements=true
+    url: jdbc:mysql://47.100.57.236:3306/barablah?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&autoReconnect=true&rewriteBatchedStatements=true
     username: bara
     password: WZCr(P-%2F@R@ZjS
     driver-class-name: com.mysql.cj.jdbc.Driver
