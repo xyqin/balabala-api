@@ -805,4 +805,74 @@ public class TeacherController {
         return new ApiEntity();
     }
 
+    @ApiOperation(value = "获取学生作业列表")
+    @GetMapping(value = "/members/{id}/homeworks")
+    public ApiEntity<List<HomeworkDto>> getMemberHomeworks(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        if (!authenticator.authenticateForTeacher()) {
+            return new ApiEntity(ApiStatus.STATUS_401);
+        }
+
+        Long teacherId = authenticator.getCurrentTeacherId();
+        BarablahMemberHomeworkExample example = new BarablahMemberHomeworkExample();
+        example.createCriteria()
+                .andMemberIdEqualTo(id)
+                .andTeacherIdEqualTo(teacherId)
+                .andDeletedEqualTo(Boolean.FALSE);
+        example.setStartRow((page - 1) * size);
+        example.setPageSize(size);
+        example.setOrderByClause("created_at DESC");
+        List<BarablahMemberHomework> homeworks = memberHomeworkMapper.selectByExample(example);
+        List<HomeworkDto> response = Lists.newArrayList();
+
+        for (BarablahMemberHomework homework : homeworks) {
+            HomeworkDto dto = new HomeworkDto();
+            dto.setId(homework.getId());
+            dto.setName(homework.getHomeworkName());
+            dto.setClosingAt(homework.getClosingAt());
+            dto.setStatus(homework.getStatus().name());
+            response.add(dto);
+        }
+
+        return new ApiEntity<>(response);
+    }
+
+    @ApiOperation(value = "获取学生作业题目列表")
+    @GetMapping(value = "/members/{memberId}/homeworks/{homeworkId}/items")
+    public ApiEntity<List<HomeworkItemDto>> getMemberHomeworkItems(
+            @PathVariable Long memberId,
+            @PathVariable Long homeworkId) {
+        if (!authenticator.authenticateForTeacher()) {
+            return new ApiEntity(ApiStatus.STATUS_401);
+        }
+
+        BarablahMemberHomeworkItemExample example = new BarablahMemberHomeworkItemExample();
+        example.createCriteria()
+                .andMemberIdEqualTo(memberId)
+                .andHomeworkIdEqualTo(homeworkId)
+                .andDeletedEqualTo(Boolean.FALSE);
+        List<BarablahMemberHomeworkItem> items = memberHomeworkItemMapper.selectByExample(example);
+        List<HomeworkItemDto> response = Lists.newArrayList();
+
+        for (BarablahMemberHomeworkItem item : items) {
+            BarablahTextbook textbook = textbookMapper.selectByPrimaryKey(item.getTextbookId());
+            HomeworkItemDto dto = new HomeworkItemDto();
+            dto.setId(item.getId());
+            dto.setAnswer(item.getAnswer());
+            dto.setTextbookId(item.getTextbookId());
+            dto.setName(textbook.getTextbookName());
+            dto.setType(textbook.getType().name());
+            dto.setQuestion(textbook.getQuestion());
+            dto.setOption(textbook.getOption());
+            dto.setCorrect(textbook.getCorrect());
+            dto.setImage(textbook.getImage());
+            dto.setVideo(textbook.getVideo());
+            response.add(dto);
+        }
+
+        return new ApiEntity<>(response);
+    }
+
 }

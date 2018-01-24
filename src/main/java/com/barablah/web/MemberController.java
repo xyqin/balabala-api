@@ -675,8 +675,10 @@ public class MemberController {
             dto.setName(textbook.getTextbookName());
             dto.setType(textbook.getType().name());
             dto.setQuestion(textbook.getQuestion());
+            dto.setOption(textbook.getOption());
             dto.setCorrect(textbook.getCorrect());
             dto.setImage(textbook.getImage());
+            dto.setVideo(textbook.getVideo());
             response.add(dto);
         }
 

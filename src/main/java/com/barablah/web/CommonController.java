@@ -46,13 +46,15 @@ public class CommonController {
 
     private static final String[] SUPPORTED_VIDEO_EXTENSIONS = {"mp4", "flv"};
 
+    private static final String[] SUPPORTED_AUDIO_EXTENSIONS = {"mp3"};
+
     private static final int MAX_IMAGE_SIZE_KB = 2048;
 
     @Value("${storage.local}")
-    private String imageStorage;
+    private String fileStorage;
 
     @Value("${storage.link}")
-    private String imageLink;
+    private String fileLink;
 
     @Autowired
     private BarablahCampusMapper campusMapper;
@@ -146,7 +148,7 @@ public class CommonController {
         try {
             byte[] bytes = IOUtils.toByteArray(file.getInputStream());
             currentDate = DateFormatUtils.format(new Date(), "yyyyMMdd");
-            String localPath = imageStorage + "/image/" + currentDate + "/";
+            String localPath = fileStorage + "/image/" + currentDate + "/";
             filename = DigestUtils.md5Hex(bytes) + "." + FilenameUtils.getExtension(submittedFilename);
             File local = new File(localPath + filename);
             FileUtils.writeByteArrayToFile(local, bytes);
@@ -154,7 +156,7 @@ public class CommonController {
             throw new InternalServerErrorException(e.getMessage());
         }
 
-        String link = imageLink + "/image/" + currentDate + "/" + filename;
+        String link = fileLink + "/image/" + currentDate + "/" + filename;
         UploadResponse response = new UploadResponse();
         response.setLink(link);
         return new ApiEntity<>(response);
@@ -175,7 +177,7 @@ public class CommonController {
         try {
             byte[] bytes = IOUtils.toByteArray(file.getInputStream());
             currentDate = DateFormatUtils.format(new Date(), "yyyyMMdd");
-            String localPath = imageStorage + "/video/" + currentDate + "/";
+            String localPath = fileStorage + "/video/" + currentDate + "/";
             filename = DigestUtils.md5Hex(bytes) + "." + FilenameUtils.getExtension(submittedFilename);
             File local = new File(localPath + filename);
             FileUtils.writeByteArrayToFile(local, bytes);
@@ -183,7 +185,36 @@ public class CommonController {
             return new ApiEntity(ApiStatus.STATUS_500.getCode(), e.getMessage());
         }
 
-        String link = imageLink + "/video/" + currentDate + "/" + filename;
+        String link = fileLink + "/video/" + currentDate + "/" + filename;
+        UploadResponse response = new UploadResponse();
+        response.setLink(link);
+        return new ApiEntity<>(response);
+    }
+
+    @ApiOperation(value = "上传录音文件")
+    @PostMapping(value = "/storage/audios")
+    public ApiEntity<UploadResponse> uploadAudio(@RequestParam("file") Part file) {
+        String submittedFilename = file.getSubmittedFileName();
+
+        if (!FilenameUtils.isExtension(submittedFilename, SUPPORTED_AUDIO_EXTENSIONS)) {
+            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "不支持的文件类型");
+        }
+
+        String currentDate = null;
+        String filename = null;
+
+        try {
+            byte[] bytes = IOUtils.toByteArray(file.getInputStream());
+            currentDate = DateFormatUtils.format(new Date(), "yyyyMMdd");
+            String localPath = fileStorage + "/audio/" + currentDate + "/";
+            filename = DigestUtils.md5Hex(bytes) + "." + FilenameUtils.getExtension(submittedFilename);
+            File local = new File(localPath + filename);
+            FileUtils.writeByteArrayToFile(local, bytes);
+        } catch (IOException e) {
+            return new ApiEntity(ApiStatus.STATUS_500.getCode(), e.getMessage());
+        }
+
+        String link = fileLink + "/audio/" + currentDate + "/" + filename;
         UploadResponse response = new UploadResponse();
         response.setLink(link);
         return new ApiEntity<>(response);
