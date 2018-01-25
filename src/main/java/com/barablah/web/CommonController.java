@@ -42,13 +42,13 @@ import java.util.List;
 @RestController
 public class CommonController {
 
-    private static final String[] SUPPORTED_IMAGE_EXTENSIONS = {"jpg", "jpeg"};
+    private static final String[] SUPPORTED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "gif"};
 
     private static final String[] SUPPORTED_VIDEO_EXTENSIONS = {"mp4", "flv"};
 
     private static final String[] SUPPORTED_AUDIO_EXTENSIONS = {"mp3"};
 
-    private static final int MAX_IMAGE_SIZE_KB = 2048;
+    private static final int MAX_IMAGE_SIZE_KB = 4096;
 
     @Value("${storage.local}")
     private String fileStorage;

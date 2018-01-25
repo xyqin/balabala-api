@@ -11,6 +11,8 @@ public class UpdateMemberInfoRequest {
 
     private String avatar;
 
+    private String birthday;
+
     private String englishName;
 
     private String gender;

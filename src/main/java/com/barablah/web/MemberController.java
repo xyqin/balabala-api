@@ -459,14 +459,23 @@ public class MemberController {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
 
+        MemberGender gender = null;
+
+        try {
+            gender = MemberGender.valueOf(request.getGender());
+        } catch (IllegalArgumentException e) {
+            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "性别值不合法，必须为：MALE或FEMALE");
+        }
+
         Long memberId = authenticator.getCurrentMemberId();
         BarablahMember memberToBeUpdated = new BarablahMember();
         memberToBeUpdated.setId(memberId);
         memberToBeUpdated.setCampusId(request.getCampusId());
         memberToBeUpdated.setNickname(request.getNickname());
         memberToBeUpdated.setAvatar(request.getAvatar());
+        memberToBeUpdated.setBirthday(request.getBirthday());
         memberToBeUpdated.setEnglishName(request.getEnglishName());
-        memberToBeUpdated.setGender(MemberGender.valueOf(request.getGender()));
+        memberToBeUpdated.setGender(gender);
 
         // 更新会员信息
         memberMapper.updateByPrimaryKeySelective(memberToBeUpdated);
@@ -505,6 +514,7 @@ public class MemberController {
             response.getContents().add(dto);
         }
 
+        authenticator.authenticate();
         Long memberId = authenticator.getCurrentMemberId();
 
         if (Objects.nonNull(memberId)) {
@@ -671,7 +681,8 @@ public class MemberController {
 
             HomeworkItemDto dto = new HomeworkItemDto();
             dto.setId(item.getId());
-            dto.setTextbookId(textbook.getId());
+            dto.setAnswer(item.getAnswer());
+            dto.setTextbookId(item.getTextbookId());
             dto.setName(textbook.getTextbookName());
             dto.setType(textbook.getType().name());
             dto.setQuestion(textbook.getQuestion());

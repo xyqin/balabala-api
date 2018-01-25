@@ -233,7 +233,8 @@ public class TeacherController {
 
             BarablahClassLessonExample lessonExample = new BarablahClassLessonExample();
             lessonExample.createCriteria()
-                    .andClassIdEqualTo(teacherId)
+                    .andClassIdEqualTo(aClass.getId())
+                    .andTypeEqualTo(LessonType.ONLINE.name())
                     .andDeletedEqualTo(Boolean.FALSE);
             lessonExample.setOrderByClause("start_at");
             List<BarablahClassLesson> lessons = lessonMapper.selectByExample(lessonExample);
@@ -730,6 +731,18 @@ public class TeacherController {
             return new ApiEntity(ApiStatus.STATUS_400.getCode(), "找不到课时");
         }
 
+        BarablahMemberLessonExample example = new BarablahMemberLessonExample();
+        example.createCriteria()
+                .andClassIdEqualTo(lesson.getClassId())
+                .andLessonIdEqualTo(lesson.getId())
+                .andMemberIdEqualTo(id)
+                .andDeletedEqualTo(Boolean.FALSE);
+        List<BarablahMemberLesson> memberLessons = memberLessonMapper.selectByExample(example);
+
+        if (CollectionUtils.isNotEmpty(memberLessons)) {
+            return new ApiEntity<>(ApiStatus.STATUS_400.getCode(), "学员已参加该课程，请勿重复邀请");
+        }
+
         BarablahMemberLesson memberLesson = new BarablahMemberLesson();
         memberLesson.setMemberId(id);
         memberLesson.setClassId(lesson.getClassId());
@@ -739,12 +752,12 @@ public class TeacherController {
         memberLesson.setProbational(Boolean.TRUE);
         memberLessonMapper.insertSelective(memberLesson);
 
-        BarablahMemberLessonExample memberLessonExample = new BarablahMemberLessonExample();
-        memberLessonExample.createCriteria()
+        example.clear();
+        example.createCriteria()
                 .andLessonIdEqualTo(lesson.getId())
                 .andProbationalEqualTo(Boolean.TRUE)
                 .andDeletedEqualTo(Boolean.FALSE);
-        List<BarablahMemberLesson> classMembers = memberLessonMapper.selectByExample(memberLessonExample);
+        List<BarablahMemberLesson> classMembers = memberLessonMapper.selectByExample(example);
         List<ClassMemberDto> response = Lists.newArrayList();
 
         for (BarablahMemberLesson classMember : classMembers) {
