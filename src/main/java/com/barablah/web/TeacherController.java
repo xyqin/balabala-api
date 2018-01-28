@@ -283,6 +283,7 @@ public class TeacherController {
         for (BarablahTextbook textbook : textbooks) {
             TextbookDto dto = new TextbookDto();
             dto.setId(textbook.getId());
+            dto.setType(textbook.getType().name());
             dto.setName(textbook.getTextbookName());
             dto.setQuestion(textbook.getQuestion());
             dto.setOption(textbook.getOption());
@@ -313,7 +314,7 @@ public class TeacherController {
     }
 
     @ApiOperation(value = "标记已备课")
-    @GetMapping(value = "/teachers/lessons/{id}/prepared")
+    @PostMapping(value = "/teachers/lessons/{id}/prepared")
     public ApiEntity prepare(@PathVariable Long id) {
         if (!authenticator.authenticateForTeacher()) {
             return new ApiEntity(ApiStatus.STATUS_401);
@@ -435,6 +436,14 @@ public class TeacherController {
             LessonDto dto = new LessonDto();
             dto.setId(lesson.getId());
             dto.setName(lesson.getLessonName());
+            dto.setStartAt(lesson.getStartAt());
+
+            if (now.after(lesson.getStartAt()) && now.before(lesson.getEndAt())) {
+                dto.setStatus("ONGOING");
+            } else {
+                dto.setStatus("FINISHED");
+            }
+
             response.add(dto);
         }
 
@@ -813,6 +822,14 @@ public class TeacherController {
             homework.setHomeworkName(request.getName());
             homework.setClosingAt(request.getClosingAt());
             memberHomeworkMapper.insertSelective(homework);
+
+            for (Long textbookId : request.getTextbookIds()) {
+                BarablahMemberHomeworkItem memberHomeworkItem = new BarablahMemberHomeworkItem();
+                memberHomeworkItem.setHomeworkId(homework.getId());
+                memberHomeworkItem.setMemberId(cMember.getMemberId());
+                memberHomeworkItem.setTextbookId(textbookId);
+                memberHomeworkItemMapper.insertSelective(memberHomeworkItem);
+            }
         }
 
         return new ApiEntity();

@@ -7,6 +7,8 @@ public class TextbookDto {
 
     private Long id;
 
+    private String type;
+
     private String name;
 
     private String question;

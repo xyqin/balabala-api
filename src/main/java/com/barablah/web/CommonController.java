@@ -12,7 +12,6 @@ import com.barablah.repository.BarablahRegionMapper;
 import com.barablah.repository.example.BarablahCampusExample;
 import com.barablah.repository.example.BarablahPositionContentExample;
 import com.barablah.repository.example.BarablahRegionExample;
-import com.barablah.web.exception.InternalServerErrorException;
 import com.barablah.web.response.CampusDto;
 import com.barablah.web.response.PositionContentDto;
 import com.barablah.web.response.RegionDto;
@@ -46,7 +45,7 @@ public class CommonController {
 
     private static final String[] SUPPORTED_VIDEO_EXTENSIONS = {"mp4", "flv"};
 
-    private static final String[] SUPPORTED_AUDIO_EXTENSIONS = {"mp3"};
+    private static final String[] SUPPORTED_AUDIO_EXTENSIONS = {"mp3", "caf", "wav"};
 
     private static final int MAX_IMAGE_SIZE_KB = 4096;
 
@@ -153,7 +152,8 @@ public class CommonController {
             File local = new File(localPath + filename);
             FileUtils.writeByteArrayToFile(local, bytes);
         } catch (IOException e) {
-            throw new InternalServerErrorException(e.getMessage());
+            log.error("上传图片失败", e);
+            return new ApiEntity<>(ApiStatus.STATUS_500.getCode(), e.getMessage());
         }
 
         String link = fileLink + "/image/" + currentDate + "/" + filename;
@@ -162,7 +162,7 @@ public class CommonController {
         return new ApiEntity<>(response);
     }
 
-    @ApiOperation(value = "上传图片文件")
+    @ApiOperation(value = "上传视频文件")
     @PostMapping(value = "/storage/videos")
     public ApiEntity<UploadResponse> uploadVideo(@RequestParam("file") Part file) {
         String submittedFilename = file.getSubmittedFileName();
@@ -182,6 +182,7 @@ public class CommonController {
             File local = new File(localPath + filename);
             FileUtils.writeByteArrayToFile(local, bytes);
         } catch (IOException e) {
+            log.error("上传视频失败", e);
             return new ApiEntity(ApiStatus.STATUS_500.getCode(), e.getMessage());
         }
 
@@ -211,6 +212,7 @@ public class CommonController {
             File local = new File(localPath + filename);
             FileUtils.writeByteArrayToFile(local, bytes);
         } catch (IOException e) {
+            log.error("上传录音失败", e);
             return new ApiEntity(ApiStatus.STATUS_500.getCode(), e.getMessage());
         }
 

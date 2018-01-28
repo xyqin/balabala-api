@@ -444,6 +444,7 @@ public class MemberController {
         response.setId(member.getId());
         response.setNickname(member.getNickname());
         response.setAvatar(member.getAvatar());
+        response.setBirthday(member.getBirthday());
         response.setEnglishName(member.getEnglishName());
         response.setGender(member.getGender().name());
         response.setPoints(member.getPoints());
@@ -522,7 +523,8 @@ public class MemberController {
             BarablahMemberLessonExample memberLessonExample = new BarablahMemberLessonExample();
             memberLessonExample.createCriteria()
                     .andMemberIdEqualTo(memberId)
-                    .andTypeEqualTo(LessonType.OFFLINE.name()).andDeletedEqualTo(Boolean.FALSE)
+                    .andTypeEqualTo(LessonType.ONLINE.name())
+                    .andDeletedEqualTo(Boolean.FALSE)
                     .andEndAtLessThan(new Date())
                     .andDeletedEqualTo(Boolean.FALSE);
             memberLessonExample.setStartRow(0);
@@ -920,7 +922,7 @@ public class MemberController {
             dto.setStartAt(lesson.getStartAt());
             dto.setDuration((int) ((lesson.getEndAt().getTime() - lesson.getStartAt().getTime()) / 1000 / 60));
 
-            if (DateUtils.isSameDay(new Date(), lesson.getStartAt())) {
+            if (DateUtils.isSameDay(new Date(), lesson.getStartAt()) && now.before(lesson.getStartAt())) {
                 dto.setStatus("SOON");
             } else if (now.after(lesson.getEndAt())) {
                 dto.setStatus("FINISHED");

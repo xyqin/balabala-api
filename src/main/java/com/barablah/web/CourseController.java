@@ -113,6 +113,7 @@ public class CourseController {
         for (BarablahTextbook textbook : textbooks) {
             TextbookDto dto = new TextbookDto();
             dto.setId(textbook.getId());
+            dto.setType(textbook.getType().name());
             dto.setName(textbook.getTextbookName());
 
             if (TextbookType.CHOICE.equals(textbook.getType())) {

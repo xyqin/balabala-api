@@ -19,9 +19,7 @@ configurations {
 }
 
 repositories {
-    maven {
-        url 'http://121.196.229.246:8081/nexus/content/groups/public/'
-    }
+    jcenter()
 }
 
 dependencies {
