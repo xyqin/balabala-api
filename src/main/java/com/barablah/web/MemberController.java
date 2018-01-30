@@ -29,6 +29,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import javax.validation.Valid;
 import java.io.IOException;
 import java.util.Date;
 import java.util.List;
@@ -281,9 +282,9 @@ public class MemberController {
         return new ApiEntity<>(response);
     }
 
-    @ApiOperation(value = "绑定手机号")
-    @PostMapping(value = "/members/phone/bind")
-    public ApiEntity bindPhone(@Validated @RequestBody BindPhoneRequest request) {
+    @ApiOperation(value = "绑定手机号预检查")
+    @PostMapping(value = "/members/phone/bind/precheck")
+    public ApiEntity checkBindPhone(@Valid @RequestBody PrecheckBindPhoneRequest request) {
         if (!authenticator.authenticate()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
@@ -291,24 +292,24 @@ public class MemberController {
         Long memberId = authenticator.getCurrentMemberId();
 
         // 检查短信验证码
-        SmsVerifyCodeRequest verifyCodeRequest = new SmsVerifyCodeRequest();
-        verifyCodeRequest.setMobile(request.getPhoneNumber());
-        verifyCodeRequest.setCode(request.getCode());
-        SmsVerifyCodeResponse verifyCodeResponse = null;
-
-        try {
-            verifyCodeResponse = neteaseClient.execute(verifyCodeRequest);
-        } catch (IOException e) {
-            log.error("controller:members:phone:bind:调用网易云检查短信验证码失败", e);
-            return new ApiEntity(ApiStatus.STATUS_500);
-        }
-
-        if (verifyCodeResponse.getCode() == 413) {
-            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "验证失败(短信服务)");
-        } else if (!verifyCodeResponse.isSuccess()) {
-            log.error("controller:members:phone:bind:调用网易云检查短信验证码失败, code=" + verifyCodeResponse.getCode());
-            return new ApiEntity(ApiStatus.STATUS_500);
-        }
+//        SmsVerifyCodeRequest verifyCodeRequest = new SmsVerifyCodeRequest();
+//        verifyCodeRequest.setMobile(request.getPhoneNumber());
+//        verifyCodeRequest.setCode(request.getCode());
+//        SmsVerifyCodeResponse verifyCodeResponse = null;
+//
+//        try {
+//            verifyCodeResponse = neteaseClient.execute(verifyCodeRequest);
+//        } catch (IOException e) {
+//            log.error("controller:members:phone:bind:check:调用网易云检查短信验证码失败", e);
+//            return new ApiEntity(ApiStatus.STATUS_500);
+//        }
+//
+//        if (verifyCodeResponse.getCode() == 413) {
+//            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "验证失败(短信服务)");
+//        } else if (!verifyCodeResponse.isSuccess()) {
+//            log.error("controller:members:phone:bind:check:调用网易云检查短信验证码失败, code=" + verifyCodeResponse.getCode());
+//            return new ApiEntity(ApiStatus.STATUS_500);
+//        }
 
         BarablahMemberPassportExample example = new BarablahMemberPassportExample();
         example.createCriteria()
@@ -318,8 +319,54 @@ public class MemberController {
         List<BarablahMemberPassport> passports = memberPassportMapper.selectByExample(example);
 
         if (CollectionUtils.isNotEmpty(passports)) {
-            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "您已绑定过手机号");
+            log.info("controller:members:phone:bind:check:当前登录用户已绑定过手机号, memberId={}", memberId);
+            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "您已经绑定过手机号");
         }
+
+        example.clear();
+        example.createCriteria()
+                .andProviderEqualTo(MemberPassportProvider.PHONE.name())
+                .andProviderIdEqualTo(request.getPhoneNumber())
+                .andDeletedEqualTo(Boolean.FALSE);
+        List<BarablahMemberPassport> phonePassports = memberPassportMapper.selectByExample(example);
+
+        if (CollectionUtils.isNotEmpty(phonePassports)) {
+            BarablahMemberPassport phonePassport = phonePassports.get(0);
+            example.clear();
+            example.createCriteria()
+                    .andProviderEqualTo(MemberPassportProvider.WECHAT.name())
+                    .andMemberIdEqualTo(phonePassport.getMemberId())
+                    .andDeletedEqualTo(Boolean.FALSE);
+            List<BarablahMemberPassport> wechatPassports = memberPassportMapper.selectByExample(example);
+
+            if (CollectionUtils.isNotEmpty(wechatPassports)) {
+                log.info("controller:members:phone:bind:check:手机号已注册且已绑定微信, memberId={}, phone={}, openid={}",
+                        wechatPassports.get(0).getMemberId(), phonePassport.getProviderId(), wechatPassports.get(0).getProviderId());
+                return new ApiEntity(ApiStatus.STATUS_400.getCode(), "您的手机号已经绑定了其它微信");
+            }
+
+            return new ApiEntity(ApiStatus.STATUS_300);
+        }
+
+        return new ApiEntity();
+    }
+
+    @ApiOperation(value = "绑定手机号")
+    @PostMapping(value = "/members/phone/bind")
+    public ApiEntity bindPhone(@Valid @RequestBody BindPhoneRequest request) {
+        if (!authenticator.authenticate()) {
+            return new ApiEntity(ApiStatus.STATUS_401);
+        }
+
+        Long memberId = authenticator.getCurrentMemberId();
+
+        BarablahMemberPassportExample example = new BarablahMemberPassportExample();
+        example.createCriteria()
+                .andProviderEqualTo(MemberPassportProvider.WECHAT.name())
+                .andMemberIdEqualTo(memberId)
+                .andDeletedEqualTo(Boolean.FALSE);
+        List<BarablahMemberPassport> wechatPassports = memberPassportMapper.selectByExample(example);
+        BarablahMemberPassport wechatPassport = wechatPassports.get(0);
 
         example.clear();
         example.createCriteria()
@@ -332,7 +379,7 @@ public class MemberController {
         memberToBeUpdated.setId(memberId);
         memberToBeUpdated.setCampusId(request.getCampusId());
 
-        if (CollectionUtils.isEmpty(phonePassports)) {
+        if (CollectionUtils.isEmpty(phonePassports)) { // 手机号尚未注册
             log.info("controller:members:phone:bind:手机号尚未注册创建新的手机账号, phone={}", request.getPhoneNumber());
             // 注册网易云IM账号
             ImUserCreateRequest imUserCreateRequest = new ImUserCreateRequest();
@@ -360,33 +407,22 @@ public class MemberController {
             passportToBeCreated.setProviderId(request.getPhoneNumber());
             passportToBeCreated.setPassword(DigestUtils.md5Hex(request.getPassword()));
             memberPassportMapper.insertSelective(passportToBeCreated);
-        } else {
+        } else { // 手机号已注册
             BarablahMemberPassport phonePassport = phonePassports.get(0);
-            example.clear();
-            example.createCriteria()
-                    .andProviderEqualTo(MemberPassportProvider.WECHAT.name())
-                    .andMemberIdEqualTo(phonePassport.getMemberId())
-                    .andDeletedEqualTo(Boolean.FALSE);
-            List<BarablahMemberPassport> wechatPassports = memberPassportMapper.selectByExample(example);
-
-            if (CollectionUtils.isNotEmpty(wechatPassports)) {
-                log.info("controller:members:phone:bind:手机号已注册且已绑定微信, memberId={}, phone={}, openid={}",
-                        wechatPassports.get(0).getMemberId(), phonePassport.getProviderId(), wechatPassports.get(0).getProviderId());
-                return new ApiEntity(ApiStatus.STATUS_400.getCode(), "您的手机号已绑定了其它微信");
-            }
-
             log.info("controller:members:phone:bind:手机号已注册尚未绑定微信, memberId={}, phone={}",
                     phonePassport.getMemberId(), phonePassport.getProviderId());
+
+            // 更新手机账号的密码
             BarablahMemberPassport passportToBeUpdated = new BarablahMemberPassport();
             passportToBeUpdated.setId(phonePassport.getId());
-            passportToBeUpdated.setMemberId(memberId);
             passportToBeUpdated.setPassword(DigestUtils.md5Hex(request.getPassword()));
             memberPassportMapper.updateByPrimaryKeySelective(passportToBeUpdated);
 
-            BarablahMember phoneMember = memberMapper.selectByPrimaryKey(phonePassport.getMemberId());
-            memberToBeUpdated.setAccid(phoneMember.getAccid());
-            memberToBeUpdated.setToken(phoneMember.getToken());
-            memberToBeUpdated.setPoints(phoneMember.getPoints());
+            // 更新微信账号的memberId
+            passportToBeUpdated = new BarablahMemberPassport();
+            passportToBeUpdated.setId(wechatPassport.getId());
+            passportToBeUpdated.setMemberId(phonePassport.getMemberId());
+            memberPassportMapper.updateByPrimaryKeySelective(passportToBeUpdated);
         }
 
         // 会员信息
@@ -448,8 +484,12 @@ public class MemberController {
         response.setEnglishName(member.getEnglishName());
         response.setGender(member.getGender().name());
         response.setPoints(member.getPoints());
-        response.setCampus(campus.getCampusName());
         response.setWechatBound(CollectionUtils.isNotEmpty(passports));
+
+        if (Objects.nonNull(campus)) {
+            response.setCampus(campus.getCampusName());
+        }
+
         return new ApiEntity(response);
     }
 
@@ -748,7 +788,10 @@ public class MemberController {
             response.setMonitor(aClass.getMonitor());
             response.setMonitorPhoneNumber(aClass.getMonitorPhoneNumber());
             response.setTeacher(teacher.getFullName());
-            response.setEnglishTeacher(englishTeacher.getFullName());
+
+            if (Objects.nonNull(englishTeacher)) {
+                response.setEnglishTeacher(englishTeacher.getFullName());
+            }
 
             BarablahClassMemberExample classMemberExample = new BarablahClassMemberExample();
             classMemberExample.createCriteria()
@@ -773,6 +816,7 @@ public class MemberController {
                 if (CollectionUtils.isNotEmpty(passports)) {
                     dto.setPhoneNumber(passports.get(0).getProviderId());
                 }
+
                 response.getMembers().add(dto);
             }
         }

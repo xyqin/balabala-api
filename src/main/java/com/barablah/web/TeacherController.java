@@ -23,6 +23,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import javax.validation.Valid;
 import java.io.IOException;
 import java.util.Date;
 import java.util.List;
@@ -261,18 +262,16 @@ public class TeacherController {
         }
 
         Long teacherId = authenticator.getCurrentTeacherId();
-        BarablahClassLessonExample example = new BarablahClassLessonExample();
-        example.createCriteria()
-                .andIdEqualTo(id)
-                .andTeacherIdEqualTo(teacherId)
-                .andDeletedEqualTo(Boolean.FALSE);
-        List<BarablahClassLesson> lessons = lessonMapper.selectByExample(example);
+        BarablahClassLesson lesson = lessonMapper.selectByPrimaryKey(id);
 
-        if (CollectionUtils.isEmpty(lessons)) {
-            return new ApiEntity(ApiStatus.STATUS_401.getCode(), "找不到课程或您无权访问");
+        if (Objects.isNull(lesson)) {
+            return new ApiEntity(ApiStatus.STATUS_404);
         }
 
-        BarablahClassLesson lesson = lessons.get(0);
+        if (!teacherId.equals(lesson.getTeacherId())) {
+            return new ApiEntity(ApiStatus.STATUS_403);
+        }
+
         BarablahTextbookExample textbookExample = new BarablahTextbookExample();
         textbookExample.createCriteria()
                 .andCategoryIdEqualTo(lesson.getCategoryId())
@@ -321,20 +320,46 @@ public class TeacherController {
         }
 
         Long teacherId = authenticator.getCurrentTeacherId();
-        BarablahClassLessonExample example = new BarablahClassLessonExample();
-        example.createCriteria()
-                .andIdEqualTo(id)
-                .andTeacherIdEqualTo(teacherId)
-                .andDeletedEqualTo(Boolean.FALSE);
-        List<BarablahClassLesson> lessons = lessonMapper.selectByExample(example);
+        BarablahClassLesson lesson = lessonMapper.selectByPrimaryKey(id);
 
-        if (CollectionUtils.isEmpty(lessons)) {
-            return new ApiEntity(ApiStatus.STATUS_401.getCode(), "找不到课程或您无权访问");
+        if (Objects.isNull(lesson)) {
+            return new ApiEntity(ApiStatus.STATUS_404);
+        }
+
+        if (!teacherId.equals(lesson.getTeacherId())) {
+            return new ApiEntity(ApiStatus.STATUS_403);
         }
 
         BarablahClassLesson lessonToBeUpdated = new BarablahClassLesson();
-        lessonToBeUpdated.setId(lessons.get(0).getId());
+        lessonToBeUpdated.setId(lesson.getId());
         lessonToBeUpdated.setPrepared(Boolean.TRUE);
+        lessonMapper.updateByPrimaryKeySelective(lessonToBeUpdated);
+        return new ApiEntity();
+    }
+
+    @ApiOperation(value = "更新课时信息")
+    @PostMapping(value = "/teachers/lessons/{id}")
+    public ApiEntity updateLesson(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateLessonRequest request) {
+        if (!authenticator.authenticateForTeacher()) {
+            return new ApiEntity(ApiStatus.STATUS_401);
+        }
+
+        Long teacherId = authenticator.getCurrentTeacherId();
+        BarablahClassLesson lesson = lessonMapper.selectByPrimaryKey(id);
+
+        if (Objects.isNull(lesson)) {
+            return new ApiEntity(ApiStatus.STATUS_404);
+        }
+
+        if (!teacherId.equals(lesson.getTeacherId())) {
+            return new ApiEntity(ApiStatus.STATUS_403);
+        }
+
+        BarablahClassLesson lessonToBeUpdated = new BarablahClassLesson();
+        lessonToBeUpdated.setId(id);
+        lessonToBeUpdated.setVideo(request.getVideo());
         lessonMapper.updateByPrimaryKeySelective(lessonToBeUpdated);
         return new ApiEntity();
     }
@@ -846,6 +871,8 @@ public class TeacherController {
         }
 
         Long teacherId = authenticator.getCurrentTeacherId();
+        BarablahTeacher teacher = teacherMapper.selectByPrimaryKey(teacherId);
+
         BarablahMemberHomeworkExample example = new BarablahMemberHomeworkExample();
         example.createCriteria()
                 .andMemberIdEqualTo(id)
@@ -861,6 +888,7 @@ public class TeacherController {
             HomeworkDto dto = new HomeworkDto();
             dto.setId(homework.getId());
             dto.setName(homework.getHomeworkName());
+            dto.setTeacher(teacher.getFullName());
             dto.setClosingAt(homework.getClosingAt());
             dto.setStatus(homework.getStatus().name());
             response.add(dto);

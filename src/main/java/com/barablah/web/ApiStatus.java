@@ -3,6 +3,7 @@ package com.barablah.web;
 public enum ApiStatus {
 
     STATUS_200(0, "OK"),
+    STATUS_300(300, "Multiple Choices"),
     STATUS_400(400, "Bad Request"),
     STATUS_401(401, "Unauthorized"),
     STATUS_403(403, "Forbidden"),
