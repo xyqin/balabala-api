@@ -1,10 +1,6 @@
 package com.barablah.auth;
 
-import com.barablah.Constants;
 import org.springframework.stereotype.Component;
-
-import javax.servlet.http.HttpSession;
-import java.util.Objects;
 
 /**
  * Created by xyqin on 2017/4/2.
@@ -13,25 +9,9 @@ import java.util.Objects;
 public class RedisAuthenticator implements Authenticator {
 
     @Override
-    public boolean authenticate() {
+    public boolean isAuthenticated() {
         WebApiContext context = WebApiContext.current();
-
-        if (Objects.nonNull(context.getMemberId())) {
-            return true;
-        }
-
-        HttpSession session = context.getRequest().getSession(false);
-
-        if (Objects.nonNull(session)) {
-            Object memberId = session.getAttribute(Constants.SESSION_KEY_MEMBER);
-
-            if (Objects.nonNull(memberId)) {
-                context.setMemberId(Long.valueOf(memberId.toString()));
-                return true;
-            }
-        }
-
-        return false;
+        return context.isAuthenticated();
     }
 
     @Override
@@ -50,25 +30,9 @@ public class RedisAuthenticator implements Authenticator {
     }
 
     @Override
-    public boolean authenticateForTeacher() {
+    public boolean isTeacherAuthenticated() {
         WebApiContext context = WebApiContext.current();
-
-        if (Objects.nonNull(context.getTeacherId())) {
-            return true;
-        }
-
-        HttpSession session = context.getRequest().getSession(false);
-
-        if (Objects.nonNull(session)) {
-            Object teacherId = session.getAttribute(Constants.SESSION_KEY_TEACHER);
-
-            if (Objects.nonNull(teacherId)) {
-                context.setTeacherId(Long.valueOf(teacherId.toString()));
-                return true;
-            }
-        }
-
-        return false;
+        return context.isTeacherAuthenticated();
     }
 
     @Override

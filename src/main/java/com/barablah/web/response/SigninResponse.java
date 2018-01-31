@@ -10,6 +10,8 @@ public class SigninResponse {
 
     private String nickname;
 
+    private String avatar;
+
     private boolean phoneBound;
 
 }

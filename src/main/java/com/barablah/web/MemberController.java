@@ -26,7 +26,6 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.time.DateUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
@@ -99,7 +98,7 @@ public class MemberController {
 
     @ApiOperation(value = "注册会员")
     @PostMapping(value = "/members/signup")
-    public ApiEntity signup(@Validated @RequestBody SignupRequest request) {
+    public ApiEntity signup(@Valid @RequestBody SignupRequest request) {
         // 检查短信验证码
         SmsVerifyCodeRequest verifyCodeRequest = new SmsVerifyCodeRequest();
         verifyCodeRequest.setMobile(request.getPhoneNumber());
@@ -167,7 +166,7 @@ public class MemberController {
 
     @ApiOperation(value = "手机号登录")
     @PostMapping(value = "/members/signin")
-    public ApiEntity<SigninResponse> signin(@Validated @RequestBody SigninRequest request) {
+    public ApiEntity<SigninResponse> signin(@Valid @RequestBody SigninRequest request) {
         BarablahMemberPassportExample example = new BarablahMemberPassportExample();
         example.createCriteria()
                 .andProviderEqualTo(MemberPassportProvider.PHONE.name())
@@ -192,12 +191,13 @@ public class MemberController {
 
         SigninResponse response = new SigninResponse();
         response.setNickname(member.getNickname());
+        response.setAvatar(member.getAvatar());
         return new ApiEntity(response);
     }
 
     @ApiOperation(value = "微信授权登录")
     @PostMapping(value = "/members/signin/wechat")
-    public ApiEntity<SigninResponse> signinByWechat(@Validated @RequestBody SigninWechatRequest body) throws Exception {
+    public ApiEntity<SigninResponse> signinByWechat(@Valid @RequestBody SigninWechatRequest body) throws Exception {
         log.info("controller:members:signin:wechat:调用微信公众号获取sns token, oauth_code={}", body.getCode());
         SnsTokenRequest tokenRequest = new SnsTokenRequest();
         tokenRequest.setCode(body.getCode());
@@ -278,6 +278,7 @@ public class MemberController {
 
         SigninResponse response = new SigninResponse();
         response.setNickname(memberToBeSave.getNickname());
+        response.setAvatar(memberToBeSave.getAvatar());
         response.setPhoneBound(phoneBound);
         return new ApiEntity<>(response);
     }
@@ -285,31 +286,31 @@ public class MemberController {
     @ApiOperation(value = "绑定手机号预检查")
     @PostMapping(value = "/members/phone/bind/precheck")
     public ApiEntity checkBindPhone(@Valid @RequestBody PrecheckBindPhoneRequest request) {
-        if (!authenticator.authenticate()) {
+        if (!authenticator.isAuthenticated()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
 
         Long memberId = authenticator.getCurrentMemberId();
 
         // 检查短信验证码
-//        SmsVerifyCodeRequest verifyCodeRequest = new SmsVerifyCodeRequest();
-//        verifyCodeRequest.setMobile(request.getPhoneNumber());
-//        verifyCodeRequest.setCode(request.getCode());
-//        SmsVerifyCodeResponse verifyCodeResponse = null;
-//
-//        try {
-//            verifyCodeResponse = neteaseClient.execute(verifyCodeRequest);
-//        } catch (IOException e) {
-//            log.error("controller:members:phone:bind:check:调用网易云检查短信验证码失败", e);
-//            return new ApiEntity(ApiStatus.STATUS_500);
-//        }
-//
-//        if (verifyCodeResponse.getCode() == 413) {
-//            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "验证失败(短信服务)");
-//        } else if (!verifyCodeResponse.isSuccess()) {
-//            log.error("controller:members:phone:bind:check:调用网易云检查短信验证码失败, code=" + verifyCodeResponse.getCode());
-//            return new ApiEntity(ApiStatus.STATUS_500);
-//        }
+        SmsVerifyCodeRequest verifyCodeRequest = new SmsVerifyCodeRequest();
+        verifyCodeRequest.setMobile(request.getPhoneNumber());
+        verifyCodeRequest.setCode(request.getCode());
+        SmsVerifyCodeResponse verifyCodeResponse = null;
+
+        try {
+            verifyCodeResponse = neteaseClient.execute(verifyCodeRequest);
+        } catch (IOException e) {
+            log.error("controller:members:phone:bind:check:调用网易云检查短信验证码失败", e);
+            return new ApiEntity(ApiStatus.STATUS_500);
+        }
+
+        if (verifyCodeResponse.getCode() == 413) {
+            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "验证失败(短信服务)");
+        } else if (!verifyCodeResponse.isSuccess()) {
+            log.error("controller:members:phone:bind:check:调用网易云检查短信验证码失败, code=" + verifyCodeResponse.getCode());
+            return new ApiEntity(ApiStatus.STATUS_500);
+        }
 
         BarablahMemberPassportExample example = new BarablahMemberPassportExample();
         example.createCriteria()
@@ -354,7 +355,7 @@ public class MemberController {
     @ApiOperation(value = "绑定手机号")
     @PostMapping(value = "/members/phone/bind")
     public ApiEntity bindPhone(@Valid @RequestBody BindPhoneRequest request) {
-        if (!authenticator.authenticate()) {
+        if (!authenticator.isAuthenticated()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
 
@@ -408,9 +409,18 @@ public class MemberController {
             passportToBeCreated.setPassword(DigestUtils.md5Hex(request.getPassword()));
             memberPassportMapper.insertSelective(passportToBeCreated);
         } else { // 手机号已注册
+            BarablahMember wechatMember = memberMapper.selectByPrimaryKey(memberId);
             BarablahMemberPassport phonePassport = phonePassports.get(0);
             log.info("controller:members:phone:bind:手机号已注册尚未绑定微信, memberId={}, phone={}",
                     phonePassport.getMemberId(), phonePassport.getProviderId());
+
+            // 使用老的手机账号并使用用微信用户信息
+            BarablahMember phoneMember = memberMapper.selectByPrimaryKey(phonePassport.getMemberId());
+            memberToBeUpdated.setId(phoneMember.getId());
+            memberToBeUpdated.setCampusId(phoneMember.getCampusId());
+            memberToBeUpdated.setNickname(wechatMember.getNickname());
+            memberToBeUpdated.setAvatar(wechatMember.getAvatar());
+            memberToBeUpdated.setGender(wechatMember.getGender());
 
             // 更新手机账号的密码
             BarablahMemberPassport passportToBeUpdated = new BarablahMemberPassport();
@@ -423,6 +433,10 @@ public class MemberController {
             passportToBeUpdated.setId(wechatPassport.getId());
             passportToBeUpdated.setMemberId(phonePassport.getMemberId());
             memberPassportMapper.updateByPrimaryKeySelective(passportToBeUpdated);
+
+            // 注销当前微信账号session
+            authenticator.invalidateSession();
+            authenticator.newSession(phoneMember.getId());
         }
 
         // 会员信息
@@ -434,7 +448,7 @@ public class MemberController {
 
     @ApiOperation(value = "忘记密码")
     @PostMapping(value = "/members/password/reset")
-    public ApiEntity resetPassword(@Validated @RequestBody ResetPasswordRequest request) {
+    public ApiEntity resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         // 检查短信验证码
         SmsVerifyCodeRequest verifyCodeRequest = new SmsVerifyCodeRequest();
         verifyCodeRequest.setMobile(request.getPhoneNumber());
@@ -444,24 +458,39 @@ public class MemberController {
         try {
             verifyCodeResponse = neteaseClient.execute(verifyCodeRequest);
         } catch (IOException e) {
-            log.error("controller:members:phone:bind:调用网易云检查短信验证码失败", e);
+            log.error("controller:members:password:reset:调用网易云检查短信验证码失败", e);
             return new ApiEntity(ApiStatus.STATUS_500);
         }
 
         if (verifyCodeResponse.getCode() == 413) {
             return new ApiEntity(ApiStatus.STATUS_400.getCode(), "验证失败(短信服务)");
         } else if (!verifyCodeResponse.isSuccess()) {
-            log.error("controller:members:phone:bind:调用网易云检查短信验证码失败, code=" + verifyCodeResponse.getCode());
+            log.error("controller:members:password:reset:调用网易云检查短信验证码失败, code=" + verifyCodeResponse.getCode());
             return new ApiEntity(ApiStatus.STATUS_500);
         }
 
+        BarablahMemberPassportExample example = new BarablahMemberPassportExample();
+        example.createCriteria()
+                .andProviderEqualTo(MemberPassportProvider.PHONE.name())
+                .andProviderIdEqualTo(request.getPhoneNumber())
+                .andDeletedEqualTo(Boolean.FALSE);
+        List<BarablahMemberPassport> passports = memberPassportMapper.selectByExample(example);
+
+        if (CollectionUtils.isEmpty(passports)) {
+            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "手机号尚未注册, number=" + request.getPhoneNumber());
+        }
+
+        BarablahMemberPassport passportToBeUpdated = new BarablahMemberPassport();
+        passportToBeUpdated.setId(passports.get(0).getId());
+        passportToBeUpdated.setPassword(DigestUtils.md5Hex(request.getPassword()));
+        memberPassportMapper.updateByPrimaryKeySelective(passportToBeUpdated);
         return new ApiEntity();
     }
 
     @ApiOperation(value = "获取会员信息")
     @GetMapping(value = "/members")
     public ApiEntity<GetMemberResponse> getMember() {
-        if (!authenticator.authenticate()) {
+        if (!authenticator.isAuthenticated()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
 
@@ -496,7 +525,7 @@ public class MemberController {
     @ApiOperation(value = "更新会员信息")
     @PostMapping(value = "/members/update")
     public ApiEntity updateMemberInfo(@RequestBody UpdateMemberInfoRequest request) {
-        if (!authenticator.authenticate()) {
+        if (!authenticator.isAuthenticated()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
 
@@ -555,7 +584,6 @@ public class MemberController {
             response.getContents().add(dto);
         }
 
-        authenticator.authenticate();
         Long memberId = authenticator.getCurrentMemberId();
 
         if (Objects.nonNull(memberId)) {
@@ -589,7 +617,7 @@ public class MemberController {
     @ApiOperation(value = "进入直播课堂")
     @GetMapping(value = "/members/lessons/current")
     public ApiEntity<CurrentLessonResponse> currentLesson() {
-        if (!authenticator.authenticate()) {
+        if (!authenticator.isAuthenticated()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
 
@@ -644,8 +672,8 @@ public class MemberController {
 
     @ApiOperation(value = "获取课程回顾详情")
     @GetMapping(value = "/members/lessons/{id}")
-    public ApiEntity getLesson(@RequestParam Long id) {
-        if (!authenticator.authenticate()) {
+    public ApiEntity<GetLessonResponse> getLesson(@RequestParam Long id) {
+        if (!authenticator.isAuthenticated()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
 
@@ -665,8 +693,8 @@ public class MemberController {
         response.setClassName(aClass.getClassName());
         response.setTeacherName(teacher.getFullName());
         response.setDuration((int) ((lesson.getEndAt().getTime() - lesson.getStartAt().getTime()) / 1000 / 60));
-        response.setVideo("http://www.baidu.com");
-        return new ApiEntity(response);
+        response.setVideo(lesson.getVideo());
+        return new ApiEntity<>(response);
     }
 
     @ApiOperation(value = "获取我的作业列表")
@@ -674,7 +702,7 @@ public class MemberController {
     public ApiEntity<List<HomeworkDto>> getHomeworks(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size) {
-        if (!authenticator.authenticate()) {
+        if (!authenticator.isAuthenticated()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
 
@@ -705,7 +733,7 @@ public class MemberController {
     @ApiOperation(value = "获取我的作业题目列表")
     @GetMapping(value = "/members/homeworks/{id}/items")
     public ApiEntity<List<HomeworkItemDto>> getHomeworkItems(@PathVariable Long id) {
-        if (!authenticator.authenticate()) {
+        if (!authenticator.isAuthenticated()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
 
@@ -742,8 +770,8 @@ public class MemberController {
     @PostMapping(value = "/members/homeworks/{id}/items")
     public ApiEntity submitHomework(
             @PathVariable Long id,
-            @Validated @RequestBody SubmitHomeworkRequest request) {
-        if (!authenticator.authenticate()) {
+            @Valid @RequestBody SubmitHomeworkRequest request) {
+        if (!authenticator.isAuthenticated()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
 
@@ -764,7 +792,7 @@ public class MemberController {
     @ApiOperation(value = "获取我的班级信息")
     @GetMapping(value = "/members/classes")
     public ApiEntity<GetMemberClassResponse> getMemberClass() {
-        if (!authenticator.authenticate()) {
+        if (!authenticator.isAuthenticated()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
 
@@ -830,7 +858,7 @@ public class MemberController {
             @ApiParam(value = "课时类型（online线上，offline线下）") @RequestParam(defaultValue = "online") String type,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size) {
-        if (!authenticator.authenticate()) {
+        if (!authenticator.isAuthenticated()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
 
@@ -864,7 +892,7 @@ public class MemberController {
         log.info("controller:members:lessons:history:获取我的授课历史列表请求, path={}, type={}, page={}, size={}",
                 "/members/lessons/history", type, page, size);
 
-        if (!authenticator.authenticate()) {
+        if (!authenticator.isAuthenticated()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
 
@@ -894,7 +922,7 @@ public class MemberController {
     public ApiEntity<List<CommentDto>> getComments(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size) {
-        if (!authenticator.authenticate()) {
+        if (!authenticator.isAuthenticated()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
 
@@ -917,6 +945,7 @@ public class MemberController {
 
             BarablahTeacher teacher = teacherMapper.selectByPrimaryKey(comment.getTeacherId());
             dto.setTeacher(teacher.getFullName());
+            dto.setTeacherAvatar(teacher.getAvatar());
             response.add(dto);
         }
 
@@ -928,7 +957,7 @@ public class MemberController {
     public ApiEntity<List<PointLogDto>> getPointLogs(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size) {
-        if (!authenticator.authenticate()) {
+        if (!authenticator.isAuthenticated()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
 

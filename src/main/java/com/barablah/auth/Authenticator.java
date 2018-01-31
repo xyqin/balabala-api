@@ -10,7 +10,7 @@ public interface Authenticator {
      *
      * @return
      */
-    boolean authenticate();
+    boolean isAuthenticated();
 
     Long getCurrentMemberId();
 
@@ -21,7 +21,7 @@ public interface Authenticator {
     /**
      * 教师身份处理
      */
-    boolean authenticateForTeacher();
+    boolean isTeacherAuthenticated();
 
     Long getCurrentTeacherId();
 

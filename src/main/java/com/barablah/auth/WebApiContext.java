@@ -1,13 +1,11 @@
 package com.barablah.auth;
 
 import com.barablah.Constants;
-import lombok.AccessLevel;
 import lombok.Data;
 import lombok.Getter;
-import lombok.Setter;
-import org.apache.commons.lang3.StringUtils;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
 import java.util.Objects;
 
 /**
@@ -16,24 +14,26 @@ import java.util.Objects;
 @Data
 public class WebApiContext {
 
-    @Getter
-    @Setter(value = AccessLevel.PACKAGE)
     private HttpServletRequest request;
 
     @Getter
-    @Setter(value = AccessLevel.PACKAGE)
     private Long memberId;
 
     @Getter
-    @Setter(value = AccessLevel.PACKAGE)
     private Long teacherId;
+
+    @Getter
+    private boolean authenticated;
+
+    @Getter
+    private boolean teacherAuthenticated;
 
     private static final ThreadLocal<WebApiContext> current = new ThreadLocal<>();
 
     private WebApiContext() {
     }
 
-    public static WebApiContext current() {
+    protected static WebApiContext current() {
         WebApiContext context = current.get();
 
         if (context == null) {
@@ -42,6 +42,30 @@ public class WebApiContext {
         }
 
         return context;
+    }
+
+    protected void setRequest(HttpServletRequest request) {
+        this.request = request;
+
+        HttpSession session = this.request.getSession(false);
+
+        if (Objects.nonNull(session)) {
+            Object memberIdStr = session.getAttribute(Constants.SESSION_KEY_MEMBER);
+
+            // 从session提取memberId
+            if (Objects.nonNull(memberIdStr)) {
+                this.memberId = Long.valueOf(memberIdStr.toString());
+                this.authenticated = true;
+            }
+
+            // 从session提取teacherId
+            Object teacherIdStr = session.getAttribute(Constants.SESSION_KEY_TEACHER);
+
+            if (Objects.nonNull(teacherIdStr)) {
+                this.teacherId = Long.valueOf(teacherIdStr.toString());
+                this.teacherAuthenticated = true;
+            }
+        }
     }
 
     void newSession(Long memberId) {
@@ -62,32 +86,12 @@ public class WebApiContext {
         }
     }
 
-    public String getRemoteIp() {
-        if (Objects.isNull(request)) {
-            return null;
-        }
-
-        String ip = request.getHeader("x-forwarded-for");
-
-        if (StringUtils.isBlank(ip) || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getHeader("Proxy-Client-IP");
-        }
-
-        if (StringUtils.isBlank(ip) || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getHeader("WL-Proxy-Client-IP");
-        }
-
-        if (StringUtils.isBlank(ip) || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getRemoteAddr();
-        }
-
-        return ip;
-    }
-
     public void reset() {
         this.request = null;
         this.memberId = null;
         this.teacherId = null;
+        this.authenticated = false;
+        this.teacherAuthenticated = false;
     }
 
 }

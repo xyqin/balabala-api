@@ -4,7 +4,9 @@ import com.barablah.auth.Authenticator;
 import com.barablah.domain.*;
 import com.barablah.netease.NeteaseClient;
 import com.barablah.netease.request.ImUserCreateRequest;
+import com.barablah.netease.request.SmsVerifyCodeRequest;
 import com.barablah.netease.response.ImUserCreateResponse;
+import com.barablah.netease.response.SmsVerifyCodeResponse;
 import com.barablah.repository.*;
 import com.barablah.repository.example.*;
 import com.barablah.web.request.*;
@@ -20,7 +22,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.time.DateFormatUtils;
 import org.apache.commons.lang3.time.DateUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
@@ -90,7 +91,7 @@ public class TeacherController {
 
     @ApiOperation(value = "教师申请")
     @PostMapping(value = "/teachers/signup")
-    public ApiEntity signup(@Validated @RequestBody SignupTeacherRequest request) {
+    public ApiEntity signup(@Valid @RequestBody SignupTeacherRequest request) {
         BarablahTeacherExample example = new BarablahTeacherExample();
         example.createCriteria()
                 .andPhoneNumberEqualTo(request.getPhoneNumber())
@@ -132,7 +133,7 @@ public class TeacherController {
 
     @ApiOperation(value = "手机号登录")
     @PostMapping(value = "/teachers/signin")
-    public ApiEntity<SigninTeacherResponse> signin(@Validated @RequestBody SigninTeacherRequest request) {
+    public ApiEntity<SigninTeacherResponse> signin(@Valid @RequestBody SigninTeacherRequest request) {
         BarablahTeacherExample example = new BarablahTeacherExample();
         example.or().andPhoneNumberEqualTo(request.getLoginName()).andDeletedEqualTo(Boolean.FALSE);
         example.or().andUsernameEqualTo(request.getLoginName()).andDeletedEqualTo(Boolean.FALSE);
@@ -162,10 +163,50 @@ public class TeacherController {
         return new ApiEntity(response);
     }
 
+    @ApiOperation(value = "忘记密码")
+    @PostMapping(value = "/teachers/password/reset")
+    public ApiEntity resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        // 检查短信验证码
+        SmsVerifyCodeRequest verifyCodeRequest = new SmsVerifyCodeRequest();
+        verifyCodeRequest.setMobile(request.getPhoneNumber());
+        verifyCodeRequest.setCode(request.getCode());
+        SmsVerifyCodeResponse verifyCodeResponse = null;
+
+        try {
+            verifyCodeResponse = neteaseClient.execute(verifyCodeRequest);
+        } catch (IOException e) {
+            log.error("controller:teachers:password:reset:调用网易云检查短信验证码失败", e);
+            return new ApiEntity(ApiStatus.STATUS_500);
+        }
+
+        if (verifyCodeResponse.getCode() == 413) {
+            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "验证失败(短信服务)");
+        } else if (!verifyCodeResponse.isSuccess()) {
+            log.error("controller:teachers:password:reset:调用网易云检查短信验证码失败, code=" + verifyCodeResponse.getCode());
+            return new ApiEntity(ApiStatus.STATUS_500);
+        }
+
+        BarablahTeacherExample example = new BarablahTeacherExample();
+        example.createCriteria()
+                .andPhoneNumberEqualTo(request.getPhoneNumber())
+                .andDeletedEqualTo(Boolean.FALSE);
+        List<BarablahTeacher> teachers = teacherMapper.selectByExample(example);
+
+        if (CollectionUtils.isEmpty(teachers)) {
+            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "手机号尚未注册, number=" + request.getPhoneNumber());
+        }
+
+        BarablahTeacher teacherToBeUpdated = new BarablahTeacher();
+        teacherToBeUpdated.setId(teachers.get(0).getId());
+        teacherToBeUpdated.setPassword(DigestUtils.md5Hex(request.getPassword()));
+        teacherMapper.updateByPrimaryKeySelective(teacherToBeUpdated);
+        return new ApiEntity();
+    }
+
     @ApiOperation(value = "获取教师信息")
     @GetMapping(value = "/teachers")
     public ApiEntity<GetTeacherResponse> getTeacherInfo() {
-        if (!authenticator.authenticateForTeacher()) {
+        if (!authenticator.isTeacherAuthenticated()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
 
@@ -189,7 +230,7 @@ public class TeacherController {
     @ApiOperation(value = "更新教师信息")
     @PostMapping(value = "/teachers/update")
     public ApiEntity updateTeacherInfo(@RequestBody UpdateTeacherInfoRequest request) {
-        if (!authenticator.authenticateForTeacher()) {
+        if (!authenticator.isTeacherAuthenticated()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
 
@@ -209,7 +250,7 @@ public class TeacherController {
     @ApiOperation(value = "获取备课列表")
     @GetMapping(value = "/teachers/lessons")
     public ApiEntity<List<ClassDto>> getLessons() {
-        if (!authenticator.authenticateForTeacher()) {
+        if (!authenticator.isTeacherAuthenticated()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
 
@@ -257,7 +298,7 @@ public class TeacherController {
     @ApiOperation(value = "获取课时的题目列表")
     @GetMapping(value = "/teachers/lessons/{id}/textbooks")
     public ApiEntity<GetTextbooksResponse> getLessonTextbooks(@PathVariable Long id) {
-        if (!authenticator.authenticateForTeacher()) {
+        if (!authenticator.isTeacherAuthenticated()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
 
@@ -315,7 +356,7 @@ public class TeacherController {
     @ApiOperation(value = "标记已备课")
     @PostMapping(value = "/teachers/lessons/{id}/prepared")
     public ApiEntity prepare(@PathVariable Long id) {
-        if (!authenticator.authenticateForTeacher()) {
+        if (!authenticator.isTeacherAuthenticated()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
 
@@ -342,7 +383,7 @@ public class TeacherController {
     public ApiEntity updateLesson(
             @PathVariable Long id,
             @Valid @RequestBody UpdateLessonRequest request) {
-        if (!authenticator.authenticateForTeacher()) {
+        if (!authenticator.isTeacherAuthenticated()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
 
@@ -367,7 +408,7 @@ public class TeacherController {
     @ApiOperation(value = "开始授课")
     @GetMapping(value = "/teachers/lessons/current")
     public ApiEntity<NewLessonResponse> newLesson() {
-        if (!authenticator.authenticateForTeacher()) {
+        if (!authenticator.isTeacherAuthenticated()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
 
@@ -441,7 +482,7 @@ public class TeacherController {
     public ApiEntity<List<LessonDto>> getLessonHistory(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size) {
-        if (!authenticator.authenticateForTeacher()) {
+        if (!authenticator.isTeacherAuthenticated()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
 
@@ -481,7 +522,7 @@ public class TeacherController {
             @ApiParam(value = "班级状态（in_review审核中，ongoing线下，finished已结束）") @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size) {
-        if (!authenticator.authenticateForTeacher()) {
+        if (!authenticator.isTeacherAuthenticated()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
 
@@ -540,7 +581,7 @@ public class TeacherController {
     public ApiEntity<GetClassMemberResponse> getClassMember(
             @PathVariable Long classId,
             @PathVariable Long memberId) {
-        if (!authenticator.authenticateForTeacher()) {
+        if (!authenticator.isTeacherAuthenticated()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
 
@@ -600,7 +641,7 @@ public class TeacherController {
     @ApiOperation(value = "申请开班")
     @PostMapping(value = "/teachers/classes")
     public ApiEntity newClass(@RequestBody ApplyClassRequest request) {
-        if (!authenticator.authenticateForTeacher()) {
+        if (!authenticator.isTeacherAuthenticated()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
 
@@ -632,7 +673,7 @@ public class TeacherController {
     public ApiEntity<List<SearchMemberDto>> searchMembers(
             @RequestParam String number,
             @RequestParam String nickname) {
-        if (!authenticator.authenticateForTeacher()) {
+        if (!authenticator.isTeacherAuthenticated()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
 
@@ -692,7 +733,7 @@ public class TeacherController {
     @ApiOperation(value = "发表评语")
     @PostMapping(value = "/members/{id}/comments")
     public ApiEntity makeComment(@RequestBody MakeCommentRequest request) {
-        if (!authenticator.authenticateForTeacher()) {
+        if (!authenticator.isTeacherAuthenticated()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
 
@@ -710,8 +751,8 @@ public class TeacherController {
     @PostMapping(value = "/members/{id}/points")
     public ApiEntity givePoints(
             @PathVariable Long id,
-            @Validated @RequestBody GivePointsRequest request) {
-        if (!authenticator.authenticateForTeacher()) {
+            @Valid @RequestBody GivePointsRequest request) {
+        if (!authenticator.isTeacherAuthenticated()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
 
@@ -753,7 +794,7 @@ public class TeacherController {
     public ApiEntity<List<ClassMemberDto>> inviteMember(
             @PathVariable Long id,
             @RequestBody InviteMemberRequest request) {
-        if (!authenticator.authenticateForTeacher()) {
+        if (!authenticator.isTeacherAuthenticated()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
 
@@ -810,7 +851,7 @@ public class TeacherController {
     @ApiOperation(value = "发布作业")
     @PostMapping(value = "/teachers/homeworks")
     public ApiEntity setHomeworks(@RequestBody SetHomeworksRequest request) {
-        if (!authenticator.authenticateForTeacher()) {
+        if (!authenticator.isTeacherAuthenticated()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
 
@@ -866,7 +907,7 @@ public class TeacherController {
             @PathVariable Long id,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size) {
-        if (!authenticator.authenticateForTeacher()) {
+        if (!authenticator.isTeacherAuthenticated()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
 
@@ -902,7 +943,7 @@ public class TeacherController {
     public ApiEntity<List<HomeworkItemDto>> getMemberHomeworkItems(
             @PathVariable Long memberId,
             @PathVariable Long homeworkId) {
-        if (!authenticator.authenticateForTeacher()) {
+        if (!authenticator.isTeacherAuthenticated()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
 
