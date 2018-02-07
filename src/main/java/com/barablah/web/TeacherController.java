@@ -4,9 +4,7 @@ import com.barablah.auth.Authenticator;
 import com.barablah.domain.*;
 import com.barablah.netease.NeteaseClient;
 import com.barablah.netease.request.ImUserCreateRequest;
-import com.barablah.netease.request.SmsVerifyCodeRequest;
 import com.barablah.netease.response.ImUserCreateResponse;
-import com.barablah.netease.response.SmsVerifyCodeResponse;
 import com.barablah.repository.*;
 import com.barablah.repository.example.*;
 import com.barablah.web.request.*;
@@ -22,6 +20,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.time.DateFormatUtils;
 import org.apache.commons.lang3.time.DateUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
@@ -89,6 +89,9 @@ public class TeacherController {
     @Autowired
     private NeteaseClient neteaseClient;
 
+    @Autowired
+    private StringRedisTemplate redisTemplate;
+
     @ApiOperation(value = "教师申请")
     @PostMapping(value = "/teachers/signup")
     public ApiEntity signup(@Valid @RequestBody SignupTeacherRequest request) {
@@ -115,7 +118,7 @@ public class TeacherController {
 
         if (!imUserCreateResponse.isSuccess()) {
             log.error("controller:teachers:signup:调用网易云注册IM账号失败, code=" + imUserCreateResponse.getCode());
-            return new ApiEntity(ApiStatus.STATUS_500);
+            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "注册网易云账号失败,手机号已注册过");
         }
 
         BarablahTeacher teacher = new BarablahTeacher();
@@ -166,24 +169,13 @@ public class TeacherController {
     @ApiOperation(value = "忘记密码")
     @PostMapping(value = "/teachers/password/reset")
     public ApiEntity resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
-        // 检查短信验证码
-        SmsVerifyCodeRequest verifyCodeRequest = new SmsVerifyCodeRequest();
-        verifyCodeRequest.setMobile(request.getPhoneNumber());
-        verifyCodeRequest.setCode(request.getCode());
-        SmsVerifyCodeResponse verifyCodeResponse = null;
+        ValueOperations<String, String> ops = redisTemplate.opsForValue();
+        String number = ops.get("verifications:code:" + request.getCode());
 
-        try {
-            verifyCodeResponse = neteaseClient.execute(verifyCodeRequest);
-        } catch (IOException e) {
-            log.error("controller:teachers:password:reset:调用网易云检查短信验证码失败", e);
-            return new ApiEntity(ApiStatus.STATUS_500);
-        }
-
-        if (verifyCodeResponse.getCode() == 413) {
-            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "验证失败(短信服务)");
-        } else if (!verifyCodeResponse.isSuccess()) {
-            log.error("controller:teachers:password:reset:调用网易云检查短信验证码失败, code=" + verifyCodeResponse.getCode());
-            return new ApiEntity(ApiStatus.STATUS_500);
+        if (!Objects.equals(request.getPhoneNumber(), number)) {
+            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "短信验证码错误");
+        } else {
+            redisTemplate.delete("verifications:code:" + request.getCode());
         }
 
         BarablahTeacherExample example = new BarablahTeacherExample();

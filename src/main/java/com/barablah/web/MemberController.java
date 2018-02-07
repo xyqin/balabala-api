@@ -4,9 +4,7 @@ import com.barablah.auth.Authenticator;
 import com.barablah.domain.*;
 import com.barablah.netease.NeteaseClient;
 import com.barablah.netease.request.ImUserCreateRequest;
-import com.barablah.netease.request.SmsVerifyCodeRequest;
 import com.barablah.netease.response.ImUserCreateResponse;
-import com.barablah.netease.response.SmsVerifyCodeResponse;
 import com.barablah.repository.*;
 import com.barablah.repository.example.*;
 import com.barablah.web.request.*;
@@ -26,6 +24,8 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.time.DateUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
@@ -94,29 +94,21 @@ public class MemberController {
     @Qualifier("wechatAppClient")
     private WxMpClient wxMpClient;
 
+    @Autowired
+    private StringRedisTemplate redisTemplate;
+
     /* 会员信息及账号相关接口 */
 
     @ApiOperation(value = "注册会员")
     @PostMapping(value = "/members/signup")
     public ApiEntity signup(@Valid @RequestBody SignupRequest request) {
-        // 检查短信验证码
-        SmsVerifyCodeRequest verifyCodeRequest = new SmsVerifyCodeRequest();
-        verifyCodeRequest.setMobile(request.getPhoneNumber());
-        verifyCodeRequest.setCode(request.getCode());
-        SmsVerifyCodeResponse verifyCodeResponse = null;
+        ValueOperations<String, String> ops = redisTemplate.opsForValue();
+        String number = ops.get("verifications:code:" + request.getCode());
 
-        try {
-            verifyCodeResponse = neteaseClient.execute(verifyCodeRequest);
-        } catch (IOException e) {
-            log.error("controller:members:signup:调用网易云检查短信验证码失败", e);
-            return new ApiEntity(ApiStatus.STATUS_500);
-        }
-
-        if (verifyCodeResponse.getCode() == 413) {
-            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "验证失败(短信服务)");
-        } else if (!verifyCodeResponse.isSuccess()) {
-            log.error("controller:members:signup:调用网易云检查短信验证码失败, code=" + verifyCodeResponse.getCode());
-            return new ApiEntity(ApiStatus.STATUS_500);
+        if (!Objects.equals(request.getPhoneNumber(), number)) {
+            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "短信验证码错误");
+        } else {
+            redisTemplate.delete("verifications:code:" + request.getCode());
         }
 
         BarablahMemberPassportExample example = new BarablahMemberPassportExample();
@@ -143,7 +135,7 @@ public class MemberController {
 
         if (!imUserCreateResponse.isSuccess()) {
             log.error("controller:members:signup:调用网易云注册IM账号失败, code=" + imUserCreateResponse.getCode());
-            return new ApiEntity(ApiStatus.STATUS_500);
+            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "注册网易云账号失败,手机号已注册过");
         }
 
         BarablahMember member = new BarablahMember();
@@ -185,6 +177,10 @@ public class MemberController {
         }
 
         BarablahMember member = memberMapper.selectByPrimaryKey(passports.get(0).getMemberId());
+
+        if (MemberStatus.DISABLED.equals(member.getStatus())) {
+            return new ApiEntity<>(ApiStatus.STATUS_400.getCode(), "账号已禁用");
+        }
 
         // 往session中设置会员ID
         authenticator.newSession(member.getId());
@@ -257,6 +253,11 @@ public class MemberController {
             log.info("controller:members:signin:wechat:更新微信会员信息, openid={}, memberId={}",
                     userInfoResponse.getOpenid(), passport.getMemberId());
             BarablahMember member = memberMapper.selectByPrimaryKey(passport.getMemberId());
+
+            if (MemberStatus.DISABLED.equals(member.getStatus())) {
+                return new ApiEntity<>(ApiStatus.STATUS_400.getCode(), "账号已禁用");
+            }
+
             memberToBeSave.setId(member.getId());
             memberMapper.updateByPrimaryKeySelective(memberToBeSave);
 
@@ -290,28 +291,16 @@ public class MemberController {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
 
+        ValueOperations<String, String> ops = redisTemplate.opsForValue();
+        String number = ops.get("verifications:code:" + request.getCode());
+
+        if (!Objects.equals(request.getPhoneNumber(), number)) {
+            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "短信验证码错误");
+        } else {
+            redisTemplate.delete("verifications:code:" + request.getCode());
+        }
+
         Long memberId = authenticator.getCurrentMemberId();
-
-        // 检查短信验证码
-        SmsVerifyCodeRequest verifyCodeRequest = new SmsVerifyCodeRequest();
-        verifyCodeRequest.setMobile(request.getPhoneNumber());
-        verifyCodeRequest.setCode(request.getCode());
-        SmsVerifyCodeResponse verifyCodeResponse = null;
-
-        try {
-            verifyCodeResponse = neteaseClient.execute(verifyCodeRequest);
-        } catch (IOException e) {
-            log.error("controller:members:phone:bind:check:调用网易云检查短信验证码失败", e);
-            return new ApiEntity(ApiStatus.STATUS_500);
-        }
-
-        if (verifyCodeResponse.getCode() == 413) {
-            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "验证失败(短信服务)");
-        } else if (!verifyCodeResponse.isSuccess()) {
-            log.error("controller:members:phone:bind:check:调用网易云检查短信验证码失败, code=" + verifyCodeResponse.getCode());
-            return new ApiEntity(ApiStatus.STATUS_500);
-        }
-
         BarablahMemberPassportExample example = new BarablahMemberPassportExample();
         example.createCriteria()
                 .andMemberIdEqualTo(memberId)
@@ -449,24 +438,11 @@ public class MemberController {
     @ApiOperation(value = "忘记密码")
     @PostMapping(value = "/members/password/reset")
     public ApiEntity resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
-        // 检查短信验证码
-        SmsVerifyCodeRequest verifyCodeRequest = new SmsVerifyCodeRequest();
-        verifyCodeRequest.setMobile(request.getPhoneNumber());
-        verifyCodeRequest.setCode(request.getCode());
-        SmsVerifyCodeResponse verifyCodeResponse = null;
+        ValueOperations<String, String> ops = redisTemplate.opsForValue();
+        String number = ops.get("verifications:code:" + request.getCode());
 
-        try {
-            verifyCodeResponse = neteaseClient.execute(verifyCodeRequest);
-        } catch (IOException e) {
-            log.error("controller:members:password:reset:调用网易云检查短信验证码失败", e);
-            return new ApiEntity(ApiStatus.STATUS_500);
-        }
-
-        if (verifyCodeResponse.getCode() == 413) {
-            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "验证失败(短信服务)");
-        } else if (!verifyCodeResponse.isSuccess()) {
-            log.error("controller:members:password:reset:调用网易云检查短信验证码失败, code=" + verifyCodeResponse.getCode());
-            return new ApiEntity(ApiStatus.STATUS_500);
+        if (!Objects.equals(request.getPhoneNumber(), number)) {
+            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "短信验证码错误");
         }
 
         BarablahMemberPassportExample example = new BarablahMemberPassportExample();
@@ -478,6 +454,8 @@ public class MemberController {
 
         if (CollectionUtils.isEmpty(passports)) {
             return new ApiEntity(ApiStatus.STATUS_400.getCode(), "手机号尚未注册, number=" + request.getPhoneNumber());
+        } else {
+            redisTemplate.delete("verifications:code:" + request.getCode());
         }
 
         BarablahMemberPassport passportToBeUpdated = new BarablahMemberPassport();

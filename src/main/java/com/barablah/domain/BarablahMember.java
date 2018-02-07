@@ -19,6 +19,8 @@ public class BarablahMember extends AbstractEntity<Long> {
 
     private String birthday;
 
+    private MemberStatus status;
+
     private String accid;
 
     private String token;
