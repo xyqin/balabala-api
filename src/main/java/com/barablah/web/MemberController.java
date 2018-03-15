@@ -4,6 +4,7 @@ import com.barablah.auth.Authenticator;
 import com.barablah.domain.*;
 import com.barablah.netease.NeteaseClient;
 import com.barablah.netease.request.ImUserCreateRequest;
+import com.barablah.netease.request.ImUserUpdateRequest;
 import com.barablah.netease.response.ImUserCreateResponse;
 import com.barablah.repository.*;
 import com.barablah.repository.example.*;
@@ -135,7 +136,14 @@ public class MemberController {
 
         if (!imUserCreateResponse.isSuccess()) {
             log.error("controller:members:signup:调用网易云注册IM账号失败, code=" + imUserCreateResponse.getCode());
-            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "注册网易云账号失败,手机号已注册过");
+            ImUserUpdateRequest updateRequest = new ImUserUpdateRequest();
+            updateRequest.setAccid("member_" + request.getPhoneNumber());
+            try {
+                //return new ApiEntity(ApiStatus.STATUS_400.getCode(), "注册网易云账号失败,手机号已注册过");
+                imUserCreateResponse = neteaseClient.execute(updateRequest);
+            } catch (IOException e) {
+                return new ApiEntity(ApiStatus.STATUS_500.getCode(),"手机号已注册过");
+            }
         }
 
         BarablahMember member = new BarablahMember();

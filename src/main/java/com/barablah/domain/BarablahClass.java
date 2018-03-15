@@ -21,6 +21,6 @@ public class BarablahClass extends AbstractEntity<Long> {
 
     private String monitorPhoneNumber;
 
-    private ClassStatus status;
+    private String status;
 
 }

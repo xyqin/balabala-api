@@ -21,6 +21,9 @@ public class SignupTeacherRequest {
     private String major;
 
     @NotBlank
+    private String password;
+
+    @NotBlank
     private String from;
 
 }

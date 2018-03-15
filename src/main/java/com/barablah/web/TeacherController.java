@@ -4,6 +4,7 @@ import com.barablah.auth.Authenticator;
 import com.barablah.domain.*;
 import com.barablah.netease.NeteaseClient;
 import com.barablah.netease.request.ImUserCreateRequest;
+import com.barablah.netease.request.ImUserUpdateRequest;
 import com.barablah.netease.response.ImUserCreateResponse;
 import com.barablah.repository.*;
 import com.barablah.repository.example.*;
@@ -26,6 +27,7 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Objects;
@@ -112,17 +114,27 @@ public class TeacherController {
         try {
             imUserCreateResponse = neteaseClient.execute(imUserCreateRequest);
         } catch (IOException e) {
-            log.error("controller:teachers:signup:调用网易云注册IM账号失败", e);
+            log.error("controller:teachers:signup:注册IM账号失败", e);
             return new ApiEntity(ApiStatus.STATUS_500);
         }
 
         if (!imUserCreateResponse.isSuccess()) {
             log.error("controller:teachers:signup:调用网易云注册IM账号失败, code=" + imUserCreateResponse.getCode());
-            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "注册网易云账号失败,手机号已注册过");
+
+            ImUserUpdateRequest updateRequest = new ImUserUpdateRequest();
+            updateRequest.setAccid("teacher_" + request.getPhoneNumber());
+            try {
+                //return new ApiEntity(ApiStatus.STATUS_400.getCode(), "注册网易云账号失败,手机号已注册过");
+                imUserCreateResponse = neteaseClient.execute(updateRequest);
+            } catch (IOException e) {
+                return new ApiEntity(ApiStatus.STATUS_500.getCode(),"手机号已注册过");
+            }
         }
 
         BarablahTeacher teacher = new BarablahTeacher();
         teacher.setCampusId(request.getCampusId());
+        teacher.setUsername(request.getPhoneNumber());
+        teacher.setPassword(DigestUtils.md5Hex(request.getPassword()));
         teacher.setFullName(request.getFullName());
         teacher.setPhoneNumber(request.getPhoneNumber());
         teacher.setMajor(request.getMajor());
@@ -159,7 +171,7 @@ public class TeacherController {
         BarablahCampus campus = campusMapper.selectByPrimaryKey(teacher.getCampusId());
 
         SigninTeacherResponse response = new SigninTeacherResponse();
-        response.setUsername("12345678");
+        response.setUsername(teacher.getUsername());
         response.setFullName(teacher.getFullName());
         response.setAvatar(teacher.getAvatar());
         response.setCampusName(campus.getCampusName());
@@ -508,7 +520,27 @@ public class TeacherController {
         return new ApiEntity(response);
     }
 
-    @ApiOperation(value = "获取班级列表")
+    @ApiOperation(value = "获取班级数量")
+    @GetMapping(value = "/teachers/getclassnums")
+    public ApiEntity<Long> getClasseNums() {
+        if (!authenticator.isTeacherAuthenticated()) {
+            return new ApiEntity(ApiStatus.STATUS_401);
+        }
+
+        Long teacherId = authenticator.getCurrentTeacherId();
+        BarablahClassExample example = new BarablahClassExample();
+        List list = new ArrayList();
+        list.add("WAITTING");
+        list.add("ONGOING");
+        list.add("FINISHED");
+
+        example.createCriteria().andStatusIn(list).andTeacherIdEqualTo(teacherId).andDeletedEqualTo(Boolean.FALSE);
+        long num = classMapper.countByExample(example);
+        return new ApiEntity<>(Long.valueOf(num));
+
+    }
+
+            @ApiOperation(value = "获取班级列表")
     @GetMapping(value = "/teachers/classes")
     public ApiEntity<List<ClassDto>> getClasses(
             @ApiParam(value = "班级状态（in_review审核中，ongoing线下，finished已结束）") @RequestParam(required = false) String status,
@@ -522,9 +554,16 @@ public class TeacherController {
 
         BarablahClassExample example = new BarablahClassExample();
         if (StringUtils.isBlank(status)) {
-            example.createCriteria()
-                    .andTeacherIdEqualTo(teacherId)
-                    .andDeletedEqualTo(Boolean.FALSE);
+            List list = new ArrayList();
+            list.add("WAITTING");
+            list.add("ONGOING");
+            list.add("FINISHED");
+
+            example.createCriteria().
+                    andStatusIn(list).
+                    andTeacherIdEqualTo(teacherId).
+                    andDeletedEqualTo(Boolean.FALSE);
+
         } else {
             example.createCriteria()
                     .andTeacherIdEqualTo(teacherId)
@@ -536,6 +575,7 @@ public class TeacherController {
         example.setPageSize(size);
         example.setOrderByClause("created_at DESC");
         List<BarablahClass> classes = classMapper.selectByExample(example);
+
         List<ClassDto> response = Lists.newArrayList();
 
         for (BarablahClass aClass : classes) {
@@ -544,6 +584,7 @@ public class TeacherController {
             dto.setName(aClass.getClassName());
 
             BarablahClassMemberExample memberExample = new BarablahClassMemberExample();
+
             memberExample.createCriteria()
                     .andClassIdEqualTo(aClass.getId())
                     .andDeletedEqualTo(Boolean.FALSE);
@@ -644,7 +685,7 @@ public class TeacherController {
         aClass.setClassName(request.getClassName());
         aClass.setTeacherId(teacherId);
         aClass.setCampusId(teacher.getCampusId());
-        aClass.setStatus(ClassStatus.IN_REVIEW);
+        aClass.setStatus(ClassStatus.IN_REVIEW.name());
         classMapper.insertSelective(aClass);
 
         if (CollectionUtils.isNotEmpty(request.getMemberIds())) {
@@ -652,7 +693,7 @@ public class TeacherController {
                 BarablahClassMember classMember = new BarablahClassMember();
                 classMember.setClassId(aClass.getId());
                 classMember.setMemberId(memberId);
-                classMember.setStatus(ClassStatus.IN_REVIEW);
+                classMember.setStatus(ClassStatus.IN_REVIEW.name());
                 classMemberMapper.insertSelective(classMember);
             }
         }

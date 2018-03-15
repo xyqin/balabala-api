@@ -1,14 +1,8 @@
 package com.barablah.web;
 
 import com.barablah.domain.*;
-import com.barablah.repository.BarablahCourseCategoryMapper;
-import com.barablah.repository.BarablahCourseMapper;
-import com.barablah.repository.BarablahTextbookCategoryMapper;
-import com.barablah.repository.BarablahTextbookMapper;
-import com.barablah.repository.example.BarablahCourseCategoryExample;
-import com.barablah.repository.example.BarablahCourseExample;
-import com.barablah.repository.example.BarablahTextbookCategoryExample;
-import com.barablah.repository.example.BarablahTextbookExample;
+import com.barablah.repository.*;
+import com.barablah.repository.example.*;
 import com.barablah.web.response.*;
 import com.google.common.collect.Lists;
 import io.swagger.annotations.Api;
@@ -33,6 +27,10 @@ public class CourseController {
 
     @Autowired
     private BarablahCourseCategoryMapper courseCategoryMapper;
+
+    @Autowired
+    private BarablahClassMapper classMapper;
+
 
     @Autowired
     private BarablahTextbookCategoryMapper textbookCategoryMapper;
@@ -81,11 +79,30 @@ public class CourseController {
 
     @ApiOperation(value = "根据父id获取教材分类列表")
     @GetMapping(value = "/textbooks/categories")
-    public ApiEntity<List<TextbookCategoryDto>> getTextbookCategory(@RequestParam(defaultValue = "0") Long parentId) {
+    public ApiEntity<List<TextbookCategoryDto>> getTextbookCategory(@RequestParam(defaultValue = "0") Long parentId,
+                                                                    @RequestParam(defaultValue = "0") String classid) {
+        Long categroyid = 0l;
+        if (classid!=null) {
+            BarablahClassExample example = new BarablahClassExample();
+            BarablahClass c = classMapper.selectByPrimaryKey(Long.valueOf(classid));
+
+            BarablahCourse cm = courseMapper.selectByPrimaryKey(c.getCourseId());
+            categroyid = cm.getTextbookCategoryId();
+        }
+
         BarablahTextbookCategoryExample example = new BarablahTextbookCategoryExample();
-        example.createCriteria()
-                .andParentIdEqualTo(parentId)
-                .andDeletedEqualTo(Boolean.FALSE);
+
+        if ( categroyid>0) {
+            example.createCriteria()
+                    .andParentIdEqualTo(categroyid)
+                    .andDeletedEqualTo(Boolean.FALSE);
+        } else {
+
+            example.createCriteria()
+                    .andParentIdEqualTo(parentId)
+                    .andDeletedEqualTo(Boolean.FALSE);
+        }
+
         List<BarablahTextbookCategory> categories = textbookCategoryMapper.selectByExample(example);
         List<TextbookCategoryDto> response = Lists.newArrayList();
 

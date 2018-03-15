@@ -11,6 +11,6 @@ public class BarablahClassMember extends AbstractEntity<Long> {
 
     private Long memberId;
 
-    private ClassStatus status;
+    private String status;
 
 }
