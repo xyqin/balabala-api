@@ -2,14 +2,18 @@ spring:
   application:
     name: api-service
   datasource:
-    url: jdbc:mysql://127.0.0.1:3306/finance4car?serverTimezone=Asia/Shanghai&autoReconnect=true&rewriteBatchedStatements=true
-    username: un_tjzy
-    password: taijizhiyuan123
+    url: jdbc:mysql://127.0.0.1:3306/barablah?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&autoReconnect=true&rewriteBatchedStatements=true
+    username: bara
+    password: WZCr(P-%2F@R@ZjS
     driver-class-name: com.mysql.cj.jdbc.Driver
   redis:
     host: 127.0.0.1
     port: 6379
-    password: B9KXw>e3#ghJivBonu9W28b9
+    password: 9wCLi7XVozMWttC6
+  http:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
 
 management:
   security:
@@ -23,6 +27,22 @@ security:
 
 mybatis:
   config-location: classpath:mybatis-config.xml
+
+storage:
+  local: /data/balabala
+  link: http://111.230.157.86:8000
+
+netease:
+  app-key: 2dc284c2f3302d1bf2a364a51c957a99
+  app-secret: 1076df64c067
+
+wechat:
+  app:
+    app-id: wx2630165be5d34c92
+    app-secret: f8459ed58765fa08fc1a1b44262f25fb
+  web:
+    app-id: wx6b0ef6fa3aac1cd1
+    app-secret: e05b4e291503c6bd43b183bfaa1de0bb
 
 debug:
   enabled: false
