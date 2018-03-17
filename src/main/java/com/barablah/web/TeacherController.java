@@ -88,11 +88,58 @@ public class TeacherController {
     @Autowired
     private BarablahMemberPointLogMapper pointLogMapper;
 
+
+    @Autowired
+    private BarablahTeacherMajorMapper majorMapper;
+
+    @Autowired
+    private BarablahCountryMapper countryMapper;
+
     @Autowired
     private NeteaseClient neteaseClient;
 
     @Autowired
     private StringRedisTemplate redisTemplate;
+
+    @ApiOperation(value = "获得教师信息")
+    @PostMapping(value = "/teachers/getmajors")
+    public ApiEntity<List<CampusDto>> getMajors() {
+        BarablahTeacherMajorExample example = new BarablahTeacherMajorExample();
+        example.createCriteria().andDeletedEqualTo(Boolean.FALSE);
+        example.setOrderByClause("position desc ");
+        List<BarablahTeacherMajor> campuses = majorMapper.selectByExample(example);
+
+        List<CampusDto> response = Lists.newArrayList();
+
+        for (BarablahTeacherMajor campus : campuses) {
+            CampusDto dto = new CampusDto();
+            dto.setId(campus.getId());
+            dto.setName(campus.getMajorName());
+            response.add(dto);
+        }
+        return new ApiEntity<>(response);
+    }
+
+    @ApiOperation(value = "获得国籍信息")
+    @PostMapping(value = "/teachers/getcountrys")
+    public ApiEntity<List<CampusDto>> getCountrys() {
+        BarablahCountryExample example = new BarablahCountryExample();
+        example.createCriteria().andDeletedEqualTo(Boolean.FALSE);
+        example.setOrderByClause("id asc ");
+        List<BarablahCountry> campuses = countryMapper.selectByExample(example);
+
+        List<CampusDto> response = Lists.newArrayList();
+
+        for (BarablahCountry campus : campuses) {
+            CampusDto dto = new CampusDto();
+            dto.setId(campus.getId());
+            dto.setName(campus.getName());
+            response.add(dto);
+        }
+        return new ApiEntity<>(response);    }
+
+
+
 
     @ApiOperation(value = "教师申请")
     @PostMapping(value = "/teachers/signup")
@@ -217,6 +264,10 @@ public class TeacherController {
         Long teacherId = authenticator.getCurrentTeacherId();
 
         BarablahTeacher teacher = teacherMapper.selectByPrimaryKey(teacherId);
+
+        BarablahTeacherMajor major = majorMapper.selectByPrimaryKey(teacher.getMajor());
+
+        BarablahCountry country = countryMapper.selectByPrimaryKey(teacher.getComeFrom());
         BarablahCampus campus = campusMapper.selectByPrimaryKey(teacher.getCampusId());
 
         GetTeacherResponse response = new GetTeacherResponse();
@@ -226,8 +277,10 @@ public class TeacherController {
         response.setFullName(teacher.getFullName());
         response.setPhoneNumber(teacher.getPhoneNumber());
         response.setAvatar(teacher.getAvatar());
-        response.setMajor(teacher.getMajor());
-        response.setComeFrom(teacher.getComeFrom());
+
+        response.setMajor(major.getMajorName());
+        response.setComeFrom(country.getName());
+
         return new ApiEntity(response);
     }
 
@@ -244,6 +297,7 @@ public class TeacherController {
         teacherToBeUpdated.setId(teacherId);
         teacherToBeUpdated.setAvatar(request.getAvatar());
         teacherToBeUpdated.setFullName(request.getFullName());
+
         teacherToBeUpdated.setMajor(request.getMajor());
         teacherToBeUpdated.setComeFrom(request.getComeFrom());
         teacherMapper.updateByPrimaryKeySelective(teacherToBeUpdated);
@@ -540,7 +594,7 @@ public class TeacherController {
 
     }
 
-            @ApiOperation(value = "获取班级列表")
+    @ApiOperation(value = "获取班级列表")
     @GetMapping(value = "/teachers/classes")
     public ApiEntity<List<ClassDto>> getClasses(
             @ApiParam(value = "班级状态（in_review审核中，ongoing线下，finished已结束）") @RequestParam(required = false) String status,

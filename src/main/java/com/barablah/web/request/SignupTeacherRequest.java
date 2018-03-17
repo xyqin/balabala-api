@@ -18,12 +18,12 @@ public class SignupTeacherRequest {
     private String phoneNumber;
 
     @NotBlank
-    private String major;
+    private Long major;
 
     @NotBlank
     private String password;
 
     @NotBlank
-    private String from;
+    private Long from;
 
 }

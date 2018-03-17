@@ -19,9 +19,9 @@ public class BarablahTeacher extends AbstractEntity<Long> {
 
     private String phoneNumber;
 
-    private String major;
+    private Long major;
 
-    private String comeFrom;
+    private Long comeFrom;
 
     private String accid;
 

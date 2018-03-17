@@ -683,62 +683,52 @@ public class BarablahTeacherExample {
             return (Criteria) this;
         }
 
-        public Criteria andMajorEqualTo(String value) {
+        public Criteria andMajorEqualTo(Long value) {
             addCriterion("major =", value, "major");
             return (Criteria) this;
         }
 
-        public Criteria andMajorNotEqualTo(String value) {
+        public Criteria andMajorNotEqualTo(Long value) {
             addCriterion("major <>", value, "major");
             return (Criteria) this;
         }
 
-        public Criteria andMajorGreaterThan(String value) {
+        public Criteria andMajorGreaterThan(Long value) {
             addCriterion("major >", value, "major");
             return (Criteria) this;
         }
 
-        public Criteria andMajorGreaterThanOrEqualTo(String value) {
+        public Criteria andMajorGreaterThanOrEqualTo(Long value) {
             addCriterion("major >=", value, "major");
             return (Criteria) this;
         }
 
-        public Criteria andMajorLessThan(String value) {
+        public Criteria andMajorLessThan(Long value) {
             addCriterion("major <", value, "major");
             return (Criteria) this;
         }
 
-        public Criteria andMajorLessThanOrEqualTo(String value) {
+        public Criteria andMajorLessThanOrEqualTo(Long value) {
             addCriterion("major <=", value, "major");
             return (Criteria) this;
         }
 
-        public Criteria andMajorLike(String value) {
-            addCriterion("major like", value, "major");
-            return (Criteria) this;
-        }
-
-        public Criteria andMajorNotLike(String value) {
-            addCriterion("major not like", value, "major");
-            return (Criteria) this;
-        }
-
-        public Criteria andMajorIn(List<String> values) {
+        public Criteria andMajorIn(List<Long> values) {
             addCriterion("major in", values, "major");
             return (Criteria) this;
         }
 
-        public Criteria andMajorNotIn(List<String> values) {
+        public Criteria andMajorNotIn(List<Long> values) {
             addCriterion("major not in", values, "major");
             return (Criteria) this;
         }
 
-        public Criteria andMajorBetween(String value1, String value2) {
+        public Criteria andMajorBetween(Long value1, Long value2) {
             addCriterion("major between", value1, value2, "major");
             return (Criteria) this;
         }
 
-        public Criteria andMajorNotBetween(String value1, String value2) {
+        public Criteria andMajorNotBetween(Long value1, Long value2) {
             addCriterion("major not between", value1, value2, "major");
             return (Criteria) this;
         }
@@ -753,62 +743,52 @@ public class BarablahTeacherExample {
             return (Criteria) this;
         }
 
-        public Criteria andComeFromEqualTo(String value) {
+        public Criteria andComeFromEqualTo(Long value) {
             addCriterion("come_from =", value, "comeFrom");
             return (Criteria) this;
         }
 
-        public Criteria andComeFromNotEqualTo(String value) {
+        public Criteria andComeFromNotEqualTo(Long value) {
             addCriterion("come_from <>", value, "comeFrom");
             return (Criteria) this;
         }
 
-        public Criteria andComeFromGreaterThan(String value) {
+        public Criteria andComeFromGreaterThan(Long value) {
             addCriterion("come_from >", value, "comeFrom");
             return (Criteria) this;
         }
 
-        public Criteria andComeFromGreaterThanOrEqualTo(String value) {
+        public Criteria andComeFromGreaterThanOrEqualTo(Long value) {
             addCriterion("come_from >=", value, "comeFrom");
             return (Criteria) this;
         }
 
-        public Criteria andComeFromLessThan(String value) {
+        public Criteria andComeFromLessThan(Long value) {
             addCriterion("come_from <", value, "comeFrom");
             return (Criteria) this;
         }
 
-        public Criteria andComeFromLessThanOrEqualTo(String value) {
+        public Criteria andComeFromLessThanOrEqualTo(Long value) {
             addCriterion("come_from <=", value, "comeFrom");
             return (Criteria) this;
         }
 
-        public Criteria andComeFromLike(String value) {
-            addCriterion("come_from like", value, "comeFrom");
-            return (Criteria) this;
-        }
-
-        public Criteria andComeFromNotLike(String value) {
-            addCriterion("come_from not like", value, "comeFrom");
-            return (Criteria) this;
-        }
-
-        public Criteria andComeFromIn(List<String> values) {
+        public Criteria andComeFromIn(List<Long> values) {
             addCriterion("come_from in", values, "comeFrom");
             return (Criteria) this;
         }
 
-        public Criteria andComeFromNotIn(List<String> values) {
+        public Criteria andComeFromNotIn(List<Long> values) {
             addCriterion("come_from not in", values, "comeFrom");
             return (Criteria) this;
         }
 
-        public Criteria andComeFromBetween(String value1, String value2) {
+        public Criteria andComeFromBetween(Long value1, Long value2) {
             addCriterion("come_from between", value1, value2, "comeFrom");
             return (Criteria) this;
         }
 
-        public Criteria andComeFromNotBetween(String value1, String value2) {
+        public Criteria andComeFromNotBetween(Long value1, Long value2) {
             addCriterion("come_from not between", value1, value2, "comeFrom");
             return (Criteria) this;
         }

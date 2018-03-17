@@ -31,5 +31,7 @@
         <mapper resource="com/barablah/mapper/BarablahTeacherHomeworkMapper.xml"/>
         <mapper resource="com/barablah/mapper/BarablahTextbookMapper.xml"/>
         <mapper resource="com/barablah/mapper/BarablahTextbookCategoryMapper.xml"/>
+        <mapper resource="com/barablah/mapper/BarablahTeacherMajorMapper.xml"/>
+        <mapper resource="com/barablah/mapper/BarablahCountryMapper.xml"/>
     </mappers>
 </configuration>

@@ -9,8 +9,8 @@ public class UpdateTeacherInfoRequest {
 
     private String fullName;
 
-    private String major;
+    private Long major;
 
-    private String comeFrom;
+    private Long comeFrom;
 
 }
