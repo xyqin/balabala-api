@@ -8,12 +8,13 @@ import com.barablah.netease.request.ImUserUpdateRequest;
 import com.barablah.netease.response.ImUserCreateResponse;
 import com.barablah.repository.*;
 import com.barablah.repository.example.*;
+import com.barablah.web.enums.BarablahClassStatusEnum;
+import com.barablah.web.enums.BarablahMemberStatusEnum;
 import com.barablah.web.request.*;
 import com.barablah.web.response.*;
 import com.google.common.collect.Lists;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiParam;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.collections4.CollectionUtils;
@@ -79,8 +80,6 @@ public class TeacherController {
     @Autowired
     private BarablahMemberHomeworkItemMapper memberHomeworkItemMapper;
 
-    @Autowired
-    private BarablahCourseMapper courseMapper;
 
     @Autowired
     private BarablahTextbookMapper textbookMapper;
@@ -96,17 +95,21 @@ public class TeacherController {
     private BarablahCountryMapper countryMapper;
 
     @Autowired
+    private BarablahCourseMapper courseMapper;
+
+    @Autowired
     private NeteaseClient neteaseClient;
 
     @Autowired
     private StringRedisTemplate redisTemplate;
 
+
     @ApiOperation(value = "获得教师信息")
-    @PostMapping(value = "/teachers/getmajors")
+    @GetMapping(value = "/teachers/getmajors")
     public ApiEntity<List<CampusDto>> getMajors() {
         BarablahTeacherMajorExample example = new BarablahTeacherMajorExample();
         example.createCriteria().andDeletedEqualTo(Boolean.FALSE);
-        example.setOrderByClause("position desc ");
+        example.setOrderByClause("position asc,id desc");
         List<BarablahTeacherMajor> campuses = majorMapper.selectByExample(example);
 
         List<CampusDto> response = Lists.newArrayList();
@@ -121,7 +124,7 @@ public class TeacherController {
     }
 
     @ApiOperation(value = "获得国籍信息")
-    @PostMapping(value = "/teachers/getcountrys")
+    @GetMapping(value = "/teachers/getcountrys")
     public ApiEntity<List<CampusDto>> getCountrys() {
         BarablahCountryExample example = new BarablahCountryExample();
         example.createCriteria().andDeletedEqualTo(Boolean.FALSE);
@@ -148,6 +151,7 @@ public class TeacherController {
         example.createCriteria()
                 .andPhoneNumberEqualTo(request.getPhoneNumber())
                 .andDeletedEqualTo(Boolean.FALSE);
+        example.or().andDeletedEqualTo(false).andUsernameEqualTo(request.getPhoneNumber());
         long count = teacherMapper.countByExample(example);
 
         if (count > 0) {
@@ -180,7 +184,11 @@ public class TeacherController {
 
         BarablahTeacher teacher = new BarablahTeacher();
         teacher.setCampusId(request.getCampusId());
+        //判断账号是否已经存在
+
         teacher.setUsername(request.getPhoneNumber());
+
+
         teacher.setPassword(DigestUtils.md5Hex(request.getPassword()));
         teacher.setFullName(request.getFullName());
         teacher.setPhoneNumber(request.getPhoneNumber());
@@ -281,6 +289,9 @@ public class TeacherController {
         response.setMajor(major.getMajorName());
         response.setComeFrom(country.getName());
 
+        response.setMajorId(major.getId());
+
+        response.setComeFromId(teacher.getComeFrom());
         return new ApiEntity(response);
     }
 
@@ -307,29 +318,38 @@ public class TeacherController {
 
     @ApiOperation(value = "获取备课列表")
     @GetMapping(value = "/teachers/lessons")
+    //获取即将开班和正在进行班级列表,获得即将备课的最近2节课
     public ApiEntity<List<ClassDto>> getLessons() {
         if (!authenticator.isTeacherAuthenticated()) {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
 
         Long teacherId = authenticator.getCurrentTeacherId();
+        List<String>  status = new ArrayList<>();
+        status.add(BarablahClassStatusEnum.已开课.getValue());
+        status.add(BarablahClassStatusEnum.待开课.getValue());
 
         BarablahClassExample example = new BarablahClassExample();
         example.createCriteria()
-                .andTeacherIdEqualTo(teacherId)
-                .andStatusEqualTo(ClassStatus.ONGOING.name())
+                .andTeacherIdEqualTo(teacherId).
+                    andStatusIn(status)
                 .andDeletedEqualTo(Boolean.FALSE);
         example.setOrderByClause("created_at DESC");
         List<BarablahClass> classes = classMapper.selectByExample(example);
         List<ClassDto> response = Lists.newArrayList();
 
+
         for (BarablahClass aClass : classes) {
             BarablahCourse course = courseMapper.selectByPrimaryKey(aClass.getCourseId());
-
             ClassDto dto = new ClassDto();
             dto.setId(aClass.getId());
             dto.setName(aClass.getClassName());
-            dto.setCourseName(course.getCourseName());
+            if (aClass.getStatus().equals(BarablahClassStatusEnum.已开课.getValue())) {
+                dto.setCourseName(course.getCourseName()+"(开课中)");
+
+            } else {
+                dto.setCourseName(course.getCourseName()+"(即将开课)");
+            }
 
             BarablahClassLessonExample lessonExample = new BarablahClassLessonExample();
             lessonExample.createCriteria()
@@ -339,19 +359,151 @@ public class TeacherController {
             lessonExample.setOrderByClause("start_at");
             List<BarablahClassLesson> lessons = lessonMapper.selectByExample(lessonExample);
 
+            int i = 0;
+            Date curDate = new Date();
             for (BarablahClassLesson lesson : lessons) {
+
+                if (lesson.getStartAt().after(curDate)) {
+                    i++;
+                }
+                //最多只允许备两节,还没有开始的课
+                if (i==3) {
+                    break;
+                }
                 LessonDto lDto = new LessonDto();
                 lDto.setId(lesson.getId());
                 lDto.setName(lesson.getLessonName());
                 lDto.setPrepared(lesson.getPrepared());
                 dto.getLessons().add(lDto);
             }
-
             response.add(dto);
         }
 
         return new ApiEntity(response);
     }
+
+
+
+    @ApiOperation(value = "标记已备课")
+    @PostMapping(value = "/teachers/lessons/{id}/prepared")
+    public ApiEntity prepare(@PathVariable Long id) {
+        if (!authenticator.isTeacherAuthenticated()) {
+            return new ApiEntity(ApiStatus.STATUS_401);
+        }
+
+
+        //获取当前备课课程
+        BarablahClassLesson lesson = lessonMapper.selectByPrimaryKey(id);
+        if(lesson.getPrepared()) {
+            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "您已经背过本课");
+
+        }
+        if (lesson.getStartAt().before(new Date())) {
+            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "课时已经开始,请提前备课");
+
+        }
+        if (Objects.isNull(lesson)) {
+            return new ApiEntity(ApiStatus.STATUS_404);
+        }
+        Date curDate = new Date();
+        BarablahClassLessonExample firstExample = new BarablahClassLessonExample();
+        firstExample.createCriteria()
+                .andTypeEqualTo(LessonType.ONLINE.name())
+                .andCategoryIdEqualTo(lesson.getCategoryId())
+                .andClassIdEqualTo(lesson.getClassId())
+                .andStartAtLessThanOrEqualTo(curDate)
+                .andPreparedEqualTo(false)
+                .andIdNotEqualTo(lesson.getId())
+                .andDeletedEqualTo(Boolean.FALSE);
+
+        if(lessonMapper.countByExample(firstExample)>0) {
+            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "请按照课时顺序背课");
+        }
+
+        Long teacherId = authenticator.getCurrentTeacherId();
+
+        //得到任课老师所有的班级列表,用来查询所有的同样教材的课程。
+        List<String>  status = new ArrayList<>();
+        status.add(BarablahClassStatusEnum.已开课.getValue());
+        status.add(BarablahClassStatusEnum.待开课.getValue());
+
+        BarablahClassExample example = new BarablahClassExample();
+        example.createCriteria()
+                .andTeacherIdEqualTo(teacherId).
+                andStatusIn(status)
+                .andDeletedEqualTo(Boolean.FALSE);
+        example.setOrderByClause("created_at DESC");
+        List<BarablahClass> classes = classMapper.selectByExample(example);
+
+        List<Long> classids = new ArrayList<>();
+        for(BarablahClass c:classes) {
+            classids.add(c.getId());
+        }
+
+        //查找并更新最近三天内即将开始的所有同样教材的课程备课标志为已备课。
+        BarablahClassLessonExample lessonExample = new BarablahClassLessonExample();
+        lessonExample.createCriteria()
+                .andTypeEqualTo(LessonType.ONLINE.name())
+                .andCategoryIdEqualTo(lesson.getCategoryId())
+                .andClassIdIn(classids)
+                .andStartAtLessThanOrEqualTo(curDate)
+                .andStartAtGreaterThanOrEqualTo(DateUtils.addDays(curDate,3))
+                .andDeletedEqualTo(Boolean.FALSE);
+        BarablahClassLesson ul = new BarablahClassLesson();
+        ul.setPrepared(true);
+        lessonMapper.updateByExample(ul,lessonExample);
+
+        return new ApiEntity();
+    }
+
+
+
+    @ApiOperation(value = "获取课时的题目列表")
+    @GetMapping(value = "/teachers/lessons/{id}/textbooks1")
+    public ApiEntity<GetTextbooksResponse> getLessonTextbooks1(@PathVariable Long id) {
+        if (!authenticator.isTeacherAuthenticated()) {
+            return new ApiEntity(ApiStatus.STATUS_401);
+        }
+
+        BarablahTextbookExample textbookExample = new BarablahTextbookExample();
+        textbookExample.createCriteria()
+                .andCategoryIdEqualTo(id)
+                .andDeletedEqualTo(Boolean.FALSE);
+        List<BarablahTextbook> textbooks = textbookMapper.selectByExample(textbookExample);
+        GetTextbooksResponse response = new GetTextbooksResponse();
+
+        for (BarablahTextbook textbook : textbooks) {
+            TextbookDto dto = new TextbookDto();
+            dto.setId(textbook.getId());
+            dto.setType(textbook.getType().name());
+            dto.setName(textbook.getTextbookName());
+            dto.setQuestion(textbook.getQuestion());
+            dto.setOption(textbook.getOption());
+            dto.setCorrect(textbook.getCorrect());
+            dto.setImage(textbook.getImage());
+            dto.setVideo(textbook.getVideo());
+
+            if (TextbookType.CHOICE.equals(textbook.getType())) {
+                response.getChoices().add(dto);
+            } else if (TextbookType.FILLIN.equals(textbook.getType())) {
+                response.getFillins().add(dto);
+            } else if (TextbookType.LISTEN.equals(textbook.getType())) {
+                response.getListens().add(dto);
+            } else if (TextbookType.SENTENCE.equals(textbook.getType())) {
+                response.getSentences().add(dto);
+            } else if (TextbookType.CONNECT.equals(textbook.getType())) {
+                response.getConnects().add(dto);
+            } else if (TextbookType.WORD.equals(textbook.getType())) {
+                response.getWords().add(dto);
+            } else if (TextbookType.PICTURE.equals(textbook.getType())) {
+                response.getPictures().add(dto);
+            } else if (TextbookType.ARTICLE.equals(textbook.getType())) {
+                response.getArticle().add(dto);
+            }
+        }
+        return new ApiEntity(response);
+    }
+
 
     @ApiOperation(value = "获取课时的题目列表")
     @GetMapping(value = "/teachers/lessons/{id}/textbooks")
@@ -361,14 +513,10 @@ public class TeacherController {
         }
 
         Long teacherId = authenticator.getCurrentTeacherId();
-        BarablahClassLesson lesson = lessonMapper.selectByPrimaryKey(id);
 
+        BarablahClassLesson lesson  = lessonMapper.selectByPrimaryKey(id);
         if (Objects.isNull(lesson)) {
             return new ApiEntity(ApiStatus.STATUS_404);
-        }
-
-        if (!teacherId.equals(lesson.getTeacherId())) {
-            return new ApiEntity(ApiStatus.STATUS_403);
         }
 
         BarablahTextbookExample textbookExample = new BarablahTextbookExample();
@@ -407,33 +555,9 @@ public class TeacherController {
                 response.getArticle().add(dto);
             }
         }
-
+        response.setClassid(lesson.getClassId());
+        response.setCatid(lesson.getCategoryId());
         return new ApiEntity(response);
-    }
-
-    @ApiOperation(value = "标记已备课")
-    @PostMapping(value = "/teachers/lessons/{id}/prepared")
-    public ApiEntity prepare(@PathVariable Long id) {
-        if (!authenticator.isTeacherAuthenticated()) {
-            return new ApiEntity(ApiStatus.STATUS_401);
-        }
-
-        Long teacherId = authenticator.getCurrentTeacherId();
-        BarablahClassLesson lesson = lessonMapper.selectByPrimaryKey(id);
-
-        if (Objects.isNull(lesson)) {
-            return new ApiEntity(ApiStatus.STATUS_404);
-        }
-
-        if (!teacherId.equals(lesson.getTeacherId())) {
-            return new ApiEntity(ApiStatus.STATUS_403);
-        }
-
-        BarablahClassLesson lessonToBeUpdated = new BarablahClassLesson();
-        lessonToBeUpdated.setId(lesson.getId());
-        lessonToBeUpdated.setPrepared(Boolean.TRUE);
-        lessonMapper.updateByPrimaryKeySelective(lessonToBeUpdated);
-        return new ApiEntity();
     }
 
     @ApiOperation(value = "更新课时信息")
@@ -452,10 +576,6 @@ public class TeacherController {
             return new ApiEntity(ApiStatus.STATUS_404);
         }
 
-        if (!teacherId.equals(lesson.getTeacherId())) {
-            return new ApiEntity(ApiStatus.STATUS_403);
-        }
-
         BarablahClassLesson lessonToBeUpdated = new BarablahClassLesson();
         lessonToBeUpdated.setId(id);
         lessonToBeUpdated.setVideo(request.getVideo());
@@ -470,30 +590,44 @@ public class TeacherController {
             return new ApiEntity(ApiStatus.STATUS_401);
         }
 
+        //老师信息
         Long teacherId = authenticator.getCurrentTeacherId();
+        BarablahTeacher teacher = teacherMapper.selectByPrimaryKey(teacherId);
 
+        //查找正在直播的课时
+        BarablahClassExample classExample = new BarablahClassExample();
+        List status = new ArrayList();
+        status.add(BarablahClassStatusEnum.待开课.getValue());
+        status.add(BarablahClassStatusEnum.已开课.getValue());
+        classExample.createCriteria().
+                andTeacherIdEqualTo(teacherId).
+                andDeletedEqualTo(false).
+                andStatusIn(status);
+        List<BarablahClass> cs = classMapper.selectByExample(classExample);
+        if (cs==null || cs.size()==0) {
+            return new ApiEntity(ApiStatus.STATUS_400.getCode(), "当前没有正在进行的课程");
+        }
+        //查找符合条件的课时
+        List classids = new ArrayList();
+        for(BarablahClass c:cs) {
+            classids.add(c.getId());
+        }
         Date now = new Date();
         BarablahClassLessonExample lessonExample = new BarablahClassLessonExample();
         lessonExample.createCriteria()
-                .andTeacherIdEqualTo(teacherId)
+                .andClassIdIn(classids)
                 .andStartAtLessThan(DateUtils.addMinutes(now, 5))
                 .andEndAtGreaterThan(now)
+                .andTypeEqualTo(LessonType.ONLINE.name())
                 .andDeletedEqualTo(Boolean.FALSE);
         List<BarablahClassLesson> lessons = lessonMapper.selectByExample(lessonExample);
-
         if (CollectionUtils.isEmpty(lessons)) {
             return new ApiEntity(ApiStatus.STATUS_400.getCode(), "当前没有正在进行的课程");
         }
-
+        if (lessons.size()!=1) {
+        }
+        //获得当前课程
         BarablahClassLesson currentLesson = lessons.get(0);
-        BarablahTeacher teacher = teacherMapper.selectByPrimaryKey(teacherId);
-
-        BarablahMemberLessonExample memberLessonExample = new BarablahMemberLessonExample();
-        memberLessonExample.createCriteria()
-                .andLessonIdEqualTo(currentLesson.getId())
-                .andDeletedEqualTo(Boolean.FALSE);
-        List<BarablahMemberLesson> classMembers = memberLessonMapper.selectByExample(memberLessonExample);
-
         NewLessonResponse response = new NewLessonResponse();
         response.setId(currentLesson.getId());
         response.setName(currentLesson.getLessonName());
@@ -504,19 +638,50 @@ public class TeacherController {
         response.setAccid(teacher.getAccid());
         response.setToken(teacher.getToken());
 
-        for (BarablahMemberLesson classMember : classMembers) {
+        //获得班级的所有学生
+        BarablahClassMemberExample memberExample = new BarablahClassMemberExample();
+        memberExample.createCriteria().
+                andClassIdEqualTo(currentLesson.getClassId()).
+                andDeletedEqualTo(false);
+        List<BarablahClassMember> classMembers = classMemberMapper.selectByExample(memberExample);
+        for (BarablahClassMember classMember : classMembers) {
             BarablahMember member = memberMapper.selectByPrimaryKey(classMember.getMemberId());
+            if (member.getDeleted()) {
+                continue;
+            }
+            if (!member.getStatus().equals(BarablahMemberStatusEnum.启用.getValue())) {
+                continue;
+            }
             ClassMemberDto dto = new ClassMemberDto();
             dto.setId(member.getId());
             dto.setNickname(member.getNickname());
             dto.setAvatar(member.getAvatar());
             dto.setAccid(member.getAccid());
+            response.getMembers().add(dto);
+        }
 
-            if (classMember.getProbational()) {
-                response.getProbationalMembers().add(dto);
-            } else {
-                response.getMembers().add(dto);
+        //获取试听学员信息
+        BarablahMemberLessonExample memberLessonExample = new BarablahMemberLessonExample();
+        memberLessonExample.createCriteria().
+                andClassIdEqualTo(currentLesson.getClassId()).
+                andDeletedEqualTo(false).
+                andProbationalEqualTo(true).
+                andLessonIdEqualTo(currentLesson.getId());
+        List<BarablahMemberLesson> membetLessons = memberLessonMapper.selectByExample(memberLessonExample);
+        for (BarablahMemberLesson memberLesson : membetLessons) {
+            BarablahMember member = memberMapper.selectByPrimaryKey(memberLesson.getMemberId());
+            if (member.getDeleted()) {
+                continue;
             }
+            if (!member.getStatus().equals("ENABLED")) {
+                continue;
+            }
+            ClassMemberDto dto = new ClassMemberDto();
+            dto.setId(member.getId());
+            dto.setNickname(member.getNickname());
+            dto.setAvatar(member.getAvatar());
+            dto.setAccid(member.getAccid());
+            response.getProbationalMembers().add(dto);
         }
 
         // 处理第一次开课的情况，生成网易云房间
@@ -527,6 +692,7 @@ public class TeacherController {
 
             BarablahClassLesson lessonToBeUpdated = new BarablahClassLesson();
             lessonToBeUpdated.setId(currentLesson.getId());
+            lessonToBeUpdated.setSign(true);
             lessonToBeUpdated.setRoom(room);
             lessonMapper.updateByPrimaryKeySelective(lessonToBeUpdated);
         }
@@ -548,8 +714,8 @@ public class TeacherController {
 
         Date now = new Date();
         BarablahClassLessonExample example = new BarablahClassLessonExample();
-        example.or().andTeacherIdEqualTo(teacherId).andEndAtLessThan(now).andDeletedEqualTo(Boolean.FALSE);
-        example.or().andTeacherIdEqualTo(teacherId).andStartAtLessThan(now).andEndAtGreaterThan(now).andDeletedEqualTo(Boolean.FALSE);
+//        example.or().andTeacherIdEqualTo(teacherId).andEndAtLessThan(now).andDeletedEqualTo(Boolean.FALSE);
+//        example.or().andTeacherIdEqualTo(teacherId).andStartAtLessThan(now).andEndAtGreaterThan(now).andDeletedEqualTo(Boolean.FALSE);
         example.setStartRow((page - 1) * size);
         example.setPageSize(size);
         example.setOrderByClause("end_at DESC");
@@ -561,13 +727,11 @@ public class TeacherController {
             dto.setId(lesson.getId());
             dto.setName(lesson.getLessonName());
             dto.setStartAt(lesson.getStartAt());
-
             if (now.after(lesson.getStartAt()) && now.before(lesson.getEndAt())) {
                 dto.setStatus("ONGOING");
             } else {
                 dto.setStatus("FINISHED");
             }
-
             response.add(dto);
         }
 
@@ -584,7 +748,7 @@ public class TeacherController {
         Long teacherId = authenticator.getCurrentTeacherId();
         BarablahClassExample example = new BarablahClassExample();
         List list = new ArrayList();
-        list.add("WAITTING");
+        list.add("WAITING");
         list.add("ONGOING");
         list.add("FINISHED");
 
@@ -594,166 +758,6 @@ public class TeacherController {
 
     }
 
-    @ApiOperation(value = "获取班级列表")
-    @GetMapping(value = "/teachers/classes")
-    public ApiEntity<List<ClassDto>> getClasses(
-            @ApiParam(value = "班级状态（in_review审核中，ongoing线下，finished已结束）") @RequestParam(required = false) String status,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        if (!authenticator.isTeacherAuthenticated()) {
-            return new ApiEntity(ApiStatus.STATUS_401);
-        }
-
-        Long teacherId = authenticator.getCurrentTeacherId();
-
-        BarablahClassExample example = new BarablahClassExample();
-        if (StringUtils.isBlank(status)) {
-            List list = new ArrayList();
-            list.add("WAITTING");
-            list.add("ONGOING");
-            list.add("FINISHED");
-
-            example.createCriteria().
-                    andStatusIn(list).
-                    andTeacherIdEqualTo(teacherId).
-                    andDeletedEqualTo(Boolean.FALSE);
-
-        } else {
-            example.createCriteria()
-                    .andTeacherIdEqualTo(teacherId)
-                    .andStatusEqualTo(status.toUpperCase())
-                    .andDeletedEqualTo(Boolean.FALSE);
-        }
-
-        example.setStartRow((page - 1) * size);
-        example.setPageSize(size);
-        example.setOrderByClause("created_at DESC");
-        List<BarablahClass> classes = classMapper.selectByExample(example);
-
-        List<ClassDto> response = Lists.newArrayList();
-
-        for (BarablahClass aClass : classes) {
-            ClassDto dto = new ClassDto();
-            dto.setId(aClass.getId());
-            dto.setName(aClass.getClassName());
-
-            BarablahClassMemberExample memberExample = new BarablahClassMemberExample();
-
-            memberExample.createCriteria()
-                    .andClassIdEqualTo(aClass.getId())
-                    .andDeletedEqualTo(Boolean.FALSE);
-            List<BarablahClassMember> classMembers = classMemberMapper.selectByExample(memberExample);
-
-            for (BarablahClassMember classMember : classMembers) {
-                BarablahMember member = memberMapper.selectByPrimaryKey(classMember.getMemberId());
-
-                if (Objects.nonNull(member)) {
-                    ClassMemberDto mDto = new ClassMemberDto();
-                    mDto.setId(member.getId());
-                    mDto.setNickname(member.getNickname());
-                    mDto.setAvatar(member.getAvatar());
-                    mDto.setAccid(member.getAccid());
-                    dto.getMembers().add(mDto);
-                }
-            }
-
-            response.add(dto);
-        }
-
-        return new ApiEntity(response);
-    }
-
-    @ApiOperation(value = "获取班级成员详情")
-    @GetMapping(value = "/teachers/classes/{classId}/members/{memberId}")
-    public ApiEntity<GetClassMemberResponse> getClassMember(
-            @PathVariable Long classId,
-            @PathVariable Long memberId) {
-        if (!authenticator.isTeacherAuthenticated()) {
-            return new ApiEntity(ApiStatus.STATUS_401);
-        }
-
-        Long teacherId = authenticator.getCurrentTeacherId();
-        BarablahTeacher teacher = teacherMapper.selectByPrimaryKey(teacherId);
-
-        // 获取学员信息
-        BarablahClassMemberExample example = new BarablahClassMemberExample();
-        example.createCriteria()
-                .andClassIdEqualTo(classId)
-                .andMemberIdEqualTo(memberId)
-                .andDeletedEqualTo(Boolean.FALSE);
-        List<BarablahClassMember> members = classMemberMapper.selectByExample(example);
-
-        if (CollectionUtils.isEmpty(members)) {
-            return new ApiEntity<>(ApiStatus.STATUS_400.getCode(), "找不到班级成员, class=" + classId + ", member=" + memberId);
-        }
-
-        BarablahMember member = memberMapper.selectByPrimaryKey(memberId);
-        BarablahMemberPassportExample passportExample = new BarablahMemberPassportExample();
-        passportExample.createCriteria()
-                .andMemberIdEqualTo(memberId)
-                .andProviderEqualTo(MemberPassportProvider.PHONE.name())
-                .andDeletedEqualTo(Boolean.FALSE);
-        List<BarablahMemberPassport> passports = passportMapper.selectByExample(passportExample);
-        BarablahMemberCommentExample commentExample = new BarablahMemberCommentExample();
-        commentExample.createCriteria()
-                .andTeacherIdEqualTo(teacherId)
-                .andMemberIdEqualTo(memberId)
-                .andDeletedEqualTo(Boolean.FALSE);
-        commentExample.setOrderByClause("created_at DESC");
-        List<BarablahMemberComment> comments = commentMapper.selectByExample(commentExample);
-
-        GetClassMemberResponse response = new GetClassMemberResponse();
-        response.setId(member.getId());
-        response.setNickname(member.getNickname());
-        response.setAvatar(member.getAvatar());
-        response.setPoints(member.getPoints());
-
-        if (CollectionUtils.isNotEmpty(passports)) {
-            response.setPhoneNumber(passports.get(0).getProviderId());
-        }
-
-        for (BarablahMemberComment comment : comments) {
-            CommentDto dto = new CommentDto();
-            dto.setId(comment.getId());
-            dto.setContent(comment.getContent());
-            dto.setCreatedAt(comment.getCreatedAt());
-            dto.setTeacher(teacher.getFullName());
-            dto.setTeacherAvatar(teacher.getAvatar());
-            response.getComments().add(dto);
-        }
-
-        return new ApiEntity<>(response);
-    }
-
-    @ApiOperation(value = "申请开班")
-    @PostMapping(value = "/teachers/classes")
-    public ApiEntity newClass(@RequestBody ApplyClassRequest request) {
-        if (!authenticator.isTeacherAuthenticated()) {
-            return new ApiEntity(ApiStatus.STATUS_401);
-        }
-
-        Long teacherId = authenticator.getCurrentTeacherId();
-        BarablahTeacher teacher = teacherMapper.selectByPrimaryKey(teacherId);
-        BarablahClass aClass = new BarablahClass();
-        aClass.setCourseId(request.getCourseId());
-        aClass.setClassName(request.getClassName());
-        aClass.setTeacherId(teacherId);
-        aClass.setCampusId(teacher.getCampusId());
-        aClass.setStatus(ClassStatus.IN_REVIEW.name());
-        classMapper.insertSelective(aClass);
-
-        if (CollectionUtils.isNotEmpty(request.getMemberIds())) {
-            for (Long memberId : request.getMemberIds()) {
-                BarablahClassMember classMember = new BarablahClassMember();
-                classMember.setClassId(aClass.getId());
-                classMember.setMemberId(memberId);
-                classMember.setStatus(ClassStatus.IN_REVIEW.name());
-                classMemberMapper.insertSelective(classMember);
-            }
-        }
-
-        return new ApiEntity();
-    }
 
     @ApiOperation(value = "搜索校区学员")
     @GetMapping(value = "/members/search")
@@ -830,7 +834,24 @@ public class TeacherController {
         commentToBeCreated.setMemberId(request.getMemberId());
         commentToBeCreated.setTeacherId(teacherId);
         commentToBeCreated.setContent(request.getContent());
+        //commentToBeCreated.set
         commentMapper.insertSelective(commentToBeCreated);
+
+        if (request.getScore() > 0) {
+            BarablahMember member = memberMapper.selectByPrimaryKey(request.getMemberId());
+
+            BarablahMember memberToBeUpdated = new BarablahMember();
+            memberToBeUpdated.setId(request.getMemberId());
+            memberToBeUpdated.setPoints(member.getPoints() + request.getScore());
+            memberMapper.updateByPrimaryKeySelective(memberToBeUpdated);
+
+            BarablahMemberPointLog pointLog = new BarablahMemberPointLog();
+            pointLog.setMemberId(request.getMemberId());
+            pointLog.setPoints(request.getScore());
+            pointLog.setType(PointType.班级表现.value());
+            pointLogMapper.insertSelective(pointLog);
+        }
+
         return new ApiEntity();
     }
 
@@ -852,11 +873,11 @@ public class TeacherController {
 
         int points = 0;
 
-        if (PointType.TROPHY.name().equals(request.getExpression().toUpperCase())) {
+        if (PointType.奖杯.value().equals(request.getExpression().toUpperCase())) {
             points = 5;
-        } else if (PointType.CLAPPING.name().equals(request.getExpression().toUpperCase())) {
+        } else if (PointType.鼓掌.value().equals(request.getExpression().toUpperCase())) {
             points = 2;
-        } else if (PointType.SMILING.name().equals(request.getExpression().toUpperCase())) {
+        } else if (PointType.开心.value().equals(request.getExpression().toUpperCase())) {
             points = 1;
         }
 
@@ -869,7 +890,7 @@ public class TeacherController {
             BarablahMemberPointLog pointLog = new BarablahMemberPointLog();
             pointLog.setMemberId(member.getId());
             pointLog.setPoints(points);
-            pointLog.setType(PointType.valueOf(request.getExpression().toUpperCase()));
+            pointLog.setType(request.getExpression().toUpperCase());
             pointLogMapper.insertSelective(pointLog);
         }
 
@@ -935,130 +956,10 @@ public class TeacherController {
         return new ApiEntity<>(response);
     }
 
-    @ApiOperation(value = "发布作业")
-    @PostMapping(value = "/teachers/homeworks")
-    public ApiEntity setHomeworks(@RequestBody SetHomeworksRequest request) {
-        if (!authenticator.isTeacherAuthenticated()) {
-            return new ApiEntity(ApiStatus.STATUS_401);
-        }
 
-        Long teacherId = authenticator.getCurrentTeacherId();
 
-        // 创建教师作业数据
-        BarablahTeacherHomework teacherHomework = new BarablahTeacherHomework();
-        teacherHomework.setTeacherId(teacherId);
-        teacherHomework.setHomeworkName(request.getName());
-        teacherHomework.setClosingAt(request.getClosingAt());
-        teacherHomeworkMapper.insertSelective(teacherHomework);
 
-        if (CollectionUtils.isNotEmpty(request.getTextbookIds())) {
-            for (Long textbookId : request.getTextbookIds()) {
-                BarablahTeacherHomeworkItem teacherHomeworkItem = new BarablahTeacherHomeworkItem();
-                teacherHomeworkItem.setHomeworkId(teacherHomework.getId());
-                teacherHomeworkItem.setTeacherId(teacherId);
-                teacherHomeworkItem.setTextbookId(textbookId);
-                teacherHomeworkItemMapper.insertSelective(teacherHomeworkItem);
-            }
-        }
-
-        // 创建会员作业数据
-        BarablahClassMemberExample classMemberExample = new BarablahClassMemberExample();
-        classMemberExample.createCriteria()
-                .andClassIdEqualTo(request.getClassId())
-                .andDeletedEqualTo(Boolean.FALSE);
-        List<BarablahClassMember> classMembers = classMemberMapper.selectByExample(classMemberExample);
-
-        for (BarablahClassMember cMember : classMembers) {
-            BarablahMemberHomework homework = new BarablahMemberHomework();
-            homework.setMemberId(cMember.getMemberId());
-            homework.setTeacherId(teacherId);
-            homework.setHomeworkName(request.getName());
-            homework.setClosingAt(request.getClosingAt());
-            memberHomeworkMapper.insertSelective(homework);
-
-            for (Long textbookId : request.getTextbookIds()) {
-                BarablahMemberHomeworkItem memberHomeworkItem = new BarablahMemberHomeworkItem();
-                memberHomeworkItem.setHomeworkId(homework.getId());
-                memberHomeworkItem.setMemberId(cMember.getMemberId());
-                memberHomeworkItem.setTextbookId(textbookId);
-                memberHomeworkItemMapper.insertSelective(memberHomeworkItem);
-            }
-        }
-
-        return new ApiEntity();
-    }
-
-    @ApiOperation(value = "获取学生作业列表")
-    @GetMapping(value = "/members/{id}/homeworks")
-    public ApiEntity<List<HomeworkDto>> getMemberHomeworks(
-            @PathVariable Long id,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        if (!authenticator.isTeacherAuthenticated()) {
-            return new ApiEntity(ApiStatus.STATUS_401);
-        }
-
-        Long teacherId = authenticator.getCurrentTeacherId();
-        BarablahTeacher teacher = teacherMapper.selectByPrimaryKey(teacherId);
-
-        BarablahMemberHomeworkExample example = new BarablahMemberHomeworkExample();
-        example.createCriteria()
-                .andMemberIdEqualTo(id)
-                .andTeacherIdEqualTo(teacherId)
-                .andDeletedEqualTo(Boolean.FALSE);
-        example.setStartRow((page - 1) * size);
-        example.setPageSize(size);
-        example.setOrderByClause("created_at DESC");
-        List<BarablahMemberHomework> homeworks = memberHomeworkMapper.selectByExample(example);
-        List<HomeworkDto> response = Lists.newArrayList();
-
-        for (BarablahMemberHomework homework : homeworks) {
-            HomeworkDto dto = new HomeworkDto();
-            dto.setId(homework.getId());
-            dto.setName(homework.getHomeworkName());
-            dto.setTeacher(teacher.getFullName());
-            dto.setClosingAt(homework.getClosingAt());
-            dto.setStatus(homework.getStatus().name());
-            response.add(dto);
-        }
-
-        return new ApiEntity<>(response);
-    }
-
-    @ApiOperation(value = "获取学生作业题目列表")
-    @GetMapping(value = "/members/{memberId}/homeworks/{homeworkId}/items")
-    public ApiEntity<List<HomeworkItemDto>> getMemberHomeworkItems(
-            @PathVariable Long memberId,
-            @PathVariable Long homeworkId) {
-        if (!authenticator.isTeacherAuthenticated()) {
-            return new ApiEntity(ApiStatus.STATUS_401);
-        }
-
-        BarablahMemberHomeworkItemExample example = new BarablahMemberHomeworkItemExample();
-        example.createCriteria()
-                .andMemberIdEqualTo(memberId)
-                .andHomeworkIdEqualTo(homeworkId)
-                .andDeletedEqualTo(Boolean.FALSE);
-        List<BarablahMemberHomeworkItem> items = memberHomeworkItemMapper.selectByExample(example);
-        List<HomeworkItemDto> response = Lists.newArrayList();
-
-        for (BarablahMemberHomeworkItem item : items) {
-            BarablahTextbook textbook = textbookMapper.selectByPrimaryKey(item.getTextbookId());
-            HomeworkItemDto dto = new HomeworkItemDto();
-            dto.setId(item.getId());
-            dto.setAnswer(item.getAnswer());
-            dto.setTextbookId(item.getTextbookId());
-            dto.setName(textbook.getTextbookName());
-            dto.setType(textbook.getType().name());
-            dto.setQuestion(textbook.getQuestion());
-            dto.setOption(textbook.getOption());
-            dto.setCorrect(textbook.getCorrect());
-            dto.setImage(textbook.getImage());
-            dto.setVideo(textbook.getVideo());
-            response.add(dto);
-        }
-
-        return new ApiEntity<>(response);
+    public void classlog() {
     }
 
 }

@@ -19,6 +19,13 @@ public class GetTeacherResponse {
 
     private String major;
 
+
+    private Long majorId;
+
     private String comeFrom;
+
+    private Long comeFromId;
+
+
 
 }

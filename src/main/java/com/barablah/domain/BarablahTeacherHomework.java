@@ -15,4 +15,6 @@ public class BarablahTeacherHomework extends AbstractEntity<Long> {
 
     private Date closingAt;
 
+    private Long classId;
+
 }

@@ -17,4 +17,6 @@ public class HomeworkDto {
 
     private Date closingAt;
 
+    private int finishStatus;
+
 }

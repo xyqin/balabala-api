@@ -9,4 +9,10 @@ public class MakeCommentRequest {
 
     private String content;
 
+    private Long classId;
+
+    private int score;
+
+
+
 }

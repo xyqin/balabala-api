@@ -48,4 +48,8 @@ public class GetTextbooksResponse {
      */
     private List<TextbookDto> article = Lists.newArrayList();
 
+    private long classid;
+
+    private long catid;
+
 }

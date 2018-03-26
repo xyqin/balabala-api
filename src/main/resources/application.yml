@@ -2,9 +2,9 @@ spring:
   application:
     name: api-service
   datasource:
-    url: jdbc:mysql://127.0.0.1:3306/finance4car?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&autoReconnect=true&rewriteBatchedStatements=true
+    url: jdbc:mysql://127.0.0.1:3306/barablah?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&autoReconnect=true&rewriteBatchedStatements=true
     username: root
-    password:
+    password: 123456
     driver-class-name: com.mysql.cj.jdbc.Driver
   profiles:
     active: development
@@ -38,3 +38,6 @@ wechat:
 
 debug:
   enabled: true
+storage:
+  local: /Users/ling/data
+  link: http://111.230.157.86:8000

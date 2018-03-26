@@ -17,13 +17,11 @@ public class SignupTeacherRequest {
     @NotBlank
     private String phoneNumber;
 
-    @NotBlank
     private Long major;
 
     @NotBlank
     private String password;
 
-    @NotBlank
     private Long from;
 
 }

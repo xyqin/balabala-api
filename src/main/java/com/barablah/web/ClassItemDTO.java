@@ -1,12 +1,11 @@
-package com.barablah.web.response;
-
-import lombok.Data;
+package com.barablah.web;
 
 import java.util.Date;
 
-@Data
-public class LessonDto {
-
+/**
+ * Created by ling on 2018/3/26.
+ */
+public class ClassItemDTO {
     private Long id;
 
     private String name;
@@ -17,10 +16,5 @@ public class LessonDto {
 
     private int duration;
 
-    private String thumbnail;
-
-    private boolean prepared;
-
     private String status;
-
 }
