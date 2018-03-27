@@ -9,4 +9,7 @@ public class GivePointsRequest {
     @NotBlank
     private String expression;
 
+
+    private Long lessonId;
+
 }

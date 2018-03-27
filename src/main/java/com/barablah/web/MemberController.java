@@ -9,6 +9,7 @@ import com.barablah.netease.response.ImUserCreateResponse;
 import com.barablah.repository.*;
 import com.barablah.repository.example.*;
 import com.barablah.web.enums.BarablahClassLessonStatusEnum;
+import com.barablah.web.enums.PointLogObjectTypeEnum;
 import com.barablah.web.request.*;
 import com.barablah.web.response.*;
 import com.barablah.wechat.mp.WxMpClient;
@@ -515,6 +516,15 @@ public class MemberController {
         response.setGender(member.getGender().name());
         response.setPoints(member.getPoints());
         response.setWechatBound(CollectionUtils.isNotEmpty(passports));
+        BarablahMemberPointLogExample bp = new BarablahMemberPointLogExample();
+        bp.createCriteria().andMemberIdEqualTo(memberId);
+
+        List<BarablahMemberPointLog> bps = memberPointLogMapper.selectByExample(bp);
+        int count = 0;
+        for(BarablahMemberPointLog log:bps) {
+            count = count + log.getPoints();
+        }
+        response.setPoints(count);
 
         if (Objects.nonNull(campus)) {
             response.setCampus(campus.getCampusName());
@@ -862,38 +872,25 @@ public class MemberController {
             dto.setPoints(pointLog.getPoints());
             dto.setType(pointLog.getType());
             dto.setCreatedAt(pointLog.getCreatedAt());
+            dto.setObjectType(pointLog.getObjectType());
+
+
+            if (pointLog.getObjectType().equals(PointLogObjectTypeEnum.班级表现.getValue())) {
+                BarablahClass c = classMapper.selectByPrimaryKey(pointLog.getObjectId());
+                dto.setMessage(c.getClassName()+"-综合表现积分");
+            } else if (pointLog.getObjectType().equals(PointLogObjectTypeEnum.作业.getValue())) {
+                BarablahMemberHomework h = memberHomeworkMapper.selectByPrimaryKey(pointLog.getObjectId());
+                dto.setMessage(h.getHomeworkName()+"-作业奖励积分");
+            } else {
+                BarablahClassLesson l = lessonMapper.selectByPrimaryKey(pointLog.getObjectId());
+                dto.setMessage(l.getLessonName()+"-");
+            }
             response.add(dto);
         }
 
         return new ApiEntity<>(response);
     }
 
-    private List<LessonDto> toLessonDtoList(List<BarablahMemberLesson> memberLessons) {
-        List<LessonDto> response = Lists.newArrayList();
-        Date now = new Date();
-
-        for (BarablahMemberLesson memberLesson : memberLessons) {
-            BarablahClassLesson lesson = lessonMapper.selectByPrimaryKey(memberLesson.getLessonId());
-            LessonDto dto = new LessonDto();
-            dto.setId(lesson.getId());
-            dto.setName(lesson.getLessonName());
-            dto.setThumbnail(lesson.getThumbnail());
-            dto.setStartAt(lesson.getStartAt());
-            dto.setDuration((int) ((lesson.getEndAt().getTime() - lesson.getStartAt().getTime()) / 1000 / 60));
-
-            if (DateUtils.isSameDay(new Date(), lesson.getStartAt()) && now.before(lesson.getStartAt())) {
-                dto.setStatus("SOON");
-            } else if (now.after(lesson.getEndAt())) {
-                dto.setStatus("FINISHED");
-            } else {
-                dto.setStatus("PENDING");
-            }
-
-            response.add(dto);
-        }
-
-        return response;
-    }
 
 
 

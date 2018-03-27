@@ -4,6 +4,7 @@ import com.barablah.domain.*;
 import com.barablah.repository.example.BarablahClassMemberExample;
 import com.barablah.repository.example.BarablahMemberHomeworkExample;
 import com.barablah.repository.example.BarablahMemberHomeworkItemExample;
+import com.barablah.repository.example.BarablahMemberPointLogExample;
 import com.barablah.web.enums.BarablahTextbookTypeEnum;
 import com.barablah.web.enums.HomeworkStatusEnum;
 import com.barablah.web.enums.PointLogObjectTypeEnum;
@@ -81,6 +82,8 @@ public class HomeworkController extends BaseController {
             homework.setHomeworkName(request.getName());
             homework.setClassId(request.getClassId());
             homework.setClosingAt(request.getClosingAt());
+            homework.setScoreIcon(0);
+            homework.setFinishedNums(0);
             //初始化都是待完成
             homework.setStatus(HomeworkStatusEnum.待完成.getValue());
             homework.setFinishedNums(0);
@@ -208,8 +211,7 @@ public class HomeworkController extends BaseController {
 
     @ApiOperation(value = "获取我的作业列表")
     @GetMapping(value = "/members/homeworks")
-    public ApiEntity<List<HomeworkDto>> getHomeworks(long classId,
-                                                     @RequestParam(defaultValue = "1") int page,
+    public ApiEntity<List<HomeworkDto>> getHomeworks(@RequestParam(defaultValue = "1") int page,
                                                      @RequestParam(defaultValue = "10") int size) {
         if (!authenticator.isAuthenticated()) {
             return new ApiEntity(ApiStatus.STATUS_401);
@@ -217,7 +219,7 @@ public class HomeworkController extends BaseController {
 
         Long memberId = authenticator.getCurrentMemberId();
         BarablahMemberHomeworkExample example = new BarablahMemberHomeworkExample();
-        example.createCriteria().andMemberIdEqualTo(memberId).andDeletedEqualTo(Boolean.FALSE).andClassIdEqualTo(classId);
+        example.createCriteria().andMemberIdEqualTo(memberId).andDeletedEqualTo(Boolean.FALSE);
 
         example.setStartRow((page - 1) * size);
         example.setPageSize(size);
@@ -230,7 +232,10 @@ public class HomeworkController extends BaseController {
             HomeworkDto dto = getAndModifyHomeWorkState(homework);
 
             BarablahTeacher teacher = teacherMapper.selectByPrimaryKey(homework.getTeacherId());
+
             dto.setTeacher(teacher.getFullName());
+
+
             response.add(dto);
         }
 
@@ -300,7 +305,25 @@ public class HomeworkController extends BaseController {
      */
     private HomeworkDto getAndModifyHomeWorkState(BarablahMemberHomework homework) {
         HomeworkDto dto = new HomeworkDto();
+        dto.setClassName(classMapper.selectByPrimaryKey(homework.getClassId()).getClassName());
+
         dto.setId(homework.getId());
+        dto.setContent(homework.getContent());
+        if (homework.getScoreIcon()!=null) {
+            dto.setScore(homework.getScoreIcon());
+        }
+        if (homework.getScoreIcon()!=null && homework.getScoreIcon()>0) {
+            //获取积分
+            BarablahMemberPointLogExample bmp = new BarablahMemberPointLogExample();
+            bmp.createCriteria().andObjectIdEqualTo(homework.getId());
+            List<BarablahMemberPointLog> points = memberPointLogMapper.selectByExample(bmp);
+            if (points!=null && points.size()>0) {
+                dto.setPoints(points.get(0).getPoints());
+            } else {
+                dto.setPoints(0);
+            }
+        }
+
         dto.setName(homework.getHomeworkName());
         if (homework.getStatus().equals(HomeworkStatusEnum.待完成.getValue())) {
             dto.setStatus(HomeworkStatusEnum.待完成.name());
@@ -322,7 +345,7 @@ public class HomeworkController extends BaseController {
             }
         } else if (homework.getStatus().equals(HomeworkStatusEnum.已完成.getValue())) {
             dto.setStatus(HomeworkStatusEnum.已完成.name());
-            dto.setFinishStatus(3);
+            dto.setFinishStatus(2);
         } else if (homework.getStatus().equals(HomeworkStatusEnum.已超时.getValue())) {
             dto.setStatus(HomeworkStatusEnum.已超时.name());
             //已经做了
@@ -334,9 +357,10 @@ public class HomeworkController extends BaseController {
             }
         } else if (homework.getStatus().equals(HomeworkStatusEnum.延时完成.getValue())) {
             dto.setStatus(HomeworkStatusEnum.延时完成.name());
-            dto.setFinishStatus(3);
+            dto.setFinishStatus(2);
         }
         dto.setClosingAt(homework.getClosingAt());
+
         return dto;
     }
 
@@ -344,11 +368,17 @@ public class HomeworkController extends BaseController {
     @Transactional
     @ApiOperation(value = "检查学生作业,并打分")
     @PostMapping(value = "/homework/check")
-    public ApiEntity correctHomework(CorrectHomeworkRequest request) {
+    public ApiEntity correctHomework(@RequestBody CorrectHomeworkRequest request) {
+        if (!authenticator.isTeacherAuthenticated()) {
+            return new ApiEntity(ApiStatus.STATUS_401);
+        }
         BarablahMemberHomework homework = memberHomeworkMapper.selectByPrimaryKey(request.getHomeworkId());
 
-        if (homework.getScoreIcon()>0) {
-            return new ApiEntity(ApiStatus.STATUS_400.getCode(),"作业已经批改过");
+        if (homework.getScoreIcon()!=null && homework.getScoreIcon()>0) {
+            return new ApiEntity(ApiStatus.STATUS_400.getCode(),"作业已经批改过!");
+        }
+        if (homework.getStatus().equals(HomeworkStatusEnum.待完成.getValue()) || homework.getStatus().equals(HomeworkStatusEnum.已超时.getValue())) {
+            return new ApiEntity(ApiStatus.STATUS_400.getCode(),"作业完成后才可以批改!");
         }
 
         homework.setContent(request.getContent());
@@ -358,7 +388,7 @@ public class HomeworkController extends BaseController {
 
         if (request.getPoint()>0) {
             BarablahMemberPointLog log = new BarablahMemberPointLog();
-            log.setMemberId(request.getMemberId());
+            log.setMemberId(homework.getMemberId());
             log.setObjectId(homework.getId());
             log.setObjectType(PointLogObjectTypeEnum.作业.getValue());
             log.setPoints(request.getPoint());

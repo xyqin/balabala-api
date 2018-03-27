@@ -15,4 +15,7 @@ public class PointLogDto {
 
     private Date createdAt;
 
+    private String objectType;
+
+    private String message;
 }

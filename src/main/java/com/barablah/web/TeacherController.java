@@ -8,8 +8,10 @@ import com.barablah.netease.request.ImUserUpdateRequest;
 import com.barablah.netease.response.ImUserCreateResponse;
 import com.barablah.repository.*;
 import com.barablah.repository.example.*;
+import com.barablah.web.enums.BarablahClassLessonStatusEnum;
 import com.barablah.web.enums.BarablahClassStatusEnum;
 import com.barablah.web.enums.BarablahMemberStatusEnum;
+import com.barablah.web.enums.PointLogObjectTypeEnum;
 import com.barablah.web.request.*;
 import com.barablah.web.response.*;
 import com.google.common.collect.Lists;
@@ -24,6 +26,7 @@ import org.apache.commons.lang3.time.DateUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
@@ -616,15 +619,17 @@ public class TeacherController {
         BarablahClassLessonExample lessonExample = new BarablahClassLessonExample();
         lessonExample.createCriteria()
                 .andClassIdIn(classids)
-                .andStartAtLessThan(DateUtils.addMinutes(now, 5))
-                .andEndAtGreaterThan(now)
+                .andStartAtLessThanOrEqualTo(DateUtils.addMinutes(now, 5))
+                .andEndAtGreaterThanOrEqualTo(now)
                 .andTypeEqualTo(LessonType.ONLINE.name())
                 .andDeletedEqualTo(Boolean.FALSE);
         List<BarablahClassLesson> lessons = lessonMapper.selectByExample(lessonExample);
         if (CollectionUtils.isEmpty(lessons)) {
             return new ApiEntity(ApiStatus.STATUS_400.getCode(), "当前没有正在进行的课程");
         }
+
         if (lessons.size()!=1) {
+            log.debug("同一时间不应该安排出现两个正在进行的课时!,因为提前5分钟可入场,理论上上存在可能性。");
         }
         //获得当前课程
         BarablahClassLesson currentLesson = lessons.get(0);
@@ -692,6 +697,7 @@ public class TeacherController {
 
             BarablahClassLesson lessonToBeUpdated = new BarablahClassLesson();
             lessonToBeUpdated.setId(currentLesson.getId());
+            //开课成功
             lessonToBeUpdated.setSign(true);
             lessonToBeUpdated.setRoom(room);
             lessonMapper.updateByPrimaryKeySelective(lessonToBeUpdated);
@@ -712,29 +718,44 @@ public class TeacherController {
 
         Long teacherId = authenticator.getCurrentTeacherId();
 
-        Date now = new Date();
+        List<String> classes = new ArrayList<>();
+        classes.add(BarablahClassStatusEnum.已开课.getValue());
+        classes.add(BarablahClassStatusEnum.已结束.getValue());
+
+        BarablahClassExample classExample = new BarablahClassExample();
+        classExample.createCriteria().
+                andTeacherIdEqualTo(teacherId).
+                andStatusIn(classes).andDeletedEqualTo(false);
+
+        List<BarablahClass> ces = classMapper.selectByExample(classExample);
+        List<Long> classids = new ArrayList<>();
+        for(BarablahClass c:ces) {
+            classids.add(c.getId());
+        }
+
+        List<String> lessonstatuss = new ArrayList<>();
+        lessonstatuss.add(BarablahClassLessonStatusEnum.已结束.getValue());
+
+
         BarablahClassLessonExample example = new BarablahClassLessonExample();
-//        example.or().andTeacherIdEqualTo(teacherId).andEndAtLessThan(now).andDeletedEqualTo(Boolean.FALSE);
-//        example.or().andTeacherIdEqualTo(teacherId).andStartAtLessThan(now).andEndAtGreaterThan(now).andDeletedEqualTo(Boolean.FALSE);
+        example.createCriteria().
+                andClassIdIn(classids).
+                andDeletedEqualTo(false).
+                andStatusIn(lessonstatuss);
         example.setStartRow((page - 1) * size);
         example.setPageSize(size);
         example.setOrderByClause("end_at DESC");
+
         List<BarablahClassLesson> lessons = lessonMapper.selectByExample(example);
         List<LessonDto> response = Lists.newArrayList();
-
         for (BarablahClassLesson lesson : lessons) {
             LessonDto dto = new LessonDto();
             dto.setId(lesson.getId());
             dto.setName(lesson.getLessonName());
             dto.setStartAt(lesson.getStartAt());
-            if (now.after(lesson.getStartAt()) && now.before(lesson.getEndAt())) {
-                dto.setStatus("ONGOING");
-            } else {
-                dto.setStatus("FINISHED");
-            }
+            dto.setStatus(lesson.getStatus());
             response.add(dto);
         }
-
         return new ApiEntity(response);
     }
 
@@ -748,9 +769,9 @@ public class TeacherController {
         Long teacherId = authenticator.getCurrentTeacherId();
         BarablahClassExample example = new BarablahClassExample();
         List list = new ArrayList();
-        list.add("WAITING");
-        list.add("ONGOING");
-        list.add("FINISHED");
+        list.add(BarablahClassStatusEnum.已开课.getValue());
+        list.add(BarablahClassStatusEnum.已结束.getValue());
+        list.add(BarablahClassStatusEnum.待开课.getValue());
 
         example.createCriteria().andStatusIn(list).andTeacherIdEqualTo(teacherId).andDeletedEqualTo(Boolean.FALSE);
         long num = classMapper.countByExample(example);
@@ -817,12 +838,12 @@ public class TeacherController {
                 response.add(dto);
             }
         }
-
         return new ApiEntity(response);
     }
 
     @ApiOperation(value = "发表评语")
     @PostMapping(value = "/members/{id}/comments")
+    @Transactional
     public ApiEntity makeComment(@RequestBody MakeCommentRequest request) {
         if (!authenticator.isTeacherAuthenticated()) {
             return new ApiEntity(ApiStatus.STATUS_401);
@@ -848,7 +869,8 @@ public class TeacherController {
             BarablahMemberPointLog pointLog = new BarablahMemberPointLog();
             pointLog.setMemberId(request.getMemberId());
             pointLog.setPoints(request.getScore());
-            pointLog.setType(PointType.班级表现.value());
+            pointLog.setObjectId(request.getClassId());
+            pointLog.setObjectType(PointLogObjectTypeEnum.班级表现.getValue());
             pointLogMapper.insertSelective(pointLog);
         }
 
@@ -891,6 +913,8 @@ public class TeacherController {
             pointLog.setMemberId(member.getId());
             pointLog.setPoints(points);
             pointLog.setType(request.getExpression().toUpperCase());
+            pointLog.setObjectType(PointLogObjectTypeEnum.线上课.getValue());
+            pointLog.setObjectId(request.getLessonId());
             pointLogMapper.insertSelective(pointLog);
         }
 
@@ -954,12 +978,6 @@ public class TeacherController {
         }
 
         return new ApiEntity<>(response);
-    }
-
-
-
-
-    public void classlog() {
     }
 
 }
